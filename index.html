@@ -1,0 +1,2629 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>AI Web Studio Pro 2026</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/theme/dracula.min.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/dialog/dialog.min.css">
+  <style>
+    :root {
+      /* Backgrounds */
+      --color-bg-deep:       #0D0F14;
+      --color-bg-surface:    #161920;
+      --color-bg-elevated:   #1E2433;
+
+      /* Borders */
+      --color-border:        #2A2D36;
+      --color-border-focus:  #4A4F5E;
+
+      /* Legacy variables for compatibility */
+      --bg: #212121; --sidebar: #171717; --primary: #3b82f6;
+      --text: #ececec; --user-msg: #303030; --ai-msg: #212121;
+      --danger: #ef4444; --success: #10b981; --accent: #8b5cf6;
+      --border: #333; --surface: #2a2a2a;
+    }
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    body { font-family: -apple-system, system-ui, sans-serif; margin: 0; height: 100dvh; display: flex; flex-direction: column; background: var(--bg); color: var(--text); overflow: hidden; }
+
+    /* ── Footer Tabs ── */
+    .tabs { display: flex; background: var(--sidebar); border-top: 1px solid var(--border); flex-shrink: 0; order: 99; safe-area-inset-bottom: env(safe-area-inset-bottom); padding-bottom: env(safe-area-inset-bottom, 0px); }
+    .tab-btn { flex: 1; padding: 11px 0 10px; border: none; background: none; font-size: 10px; font-weight: 600; color: #666; cursor: pointer; transition: 0.2s; display: flex; flex-direction: column; align-items: center; gap: 3px; }
+    .tab-btn .tab-icon { font-size: 20px; line-height: 1; }
+    .tab-btn.active { color: #fff; }
+    .tab-btn.active .tab-icon { filter: drop-shadow(0 0 6px rgba(59,130,246,0.8)); }
+
+    /* ── Content ── */
+    .content { flex: 1; position: relative; overflow: hidden; display: flex; flex-direction: column; }
+    .page { display: none; height: 100%; flex-direction: column; overflow: hidden; }
+    .page.active { display: flex; }
+
+    /* ── Chat Header ── */
+    .chat-header { display: flex; justify-content: space-between; align-items: center; padding: 9px 14px; background: var(--sidebar); border-bottom: 1px solid var(--border); gap: 8px; flex-shrink: 0; }
+    .header-title { font-size: 11px; font-weight: bold; color: #666; white-space: nowrap; }
+    .header-right { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; justify-content: flex-end; }
+    .provider-badge { font-size: 10px; font-weight: bold; padding: 2px 8px; border-radius: 10px; background: var(--primary); color: #fff; white-space: nowrap; cursor: pointer; }
+    .provider-badge.claude { background: #d97757; }
+    .provider-badge.gpt { background: #10a37f; }
+    .provider-badge.grok { background: #555; }
+    .model-badge { font-size: 10px; color: #888; background: #2a2a2a; padding: 2px 8px; border-radius: 10px; border: 1px solid #3a3a3a; white-space: nowrap; max-width: 120px; overflow: hidden; text-overflow: ellipsis; }
+    .reset-btn { background: #333; color: #eee; border: 1px solid #444; padding: 4px 10px; border-radius: 4px; font-size: 11px; cursor: pointer; white-space: nowrap; }
+    .reset-btn:hover { background: var(--danger); border-color: var(--danger); }
+
+    /* ── Chat Log ── */
+    #chat-log { flex: 1; padding: 15px; overflow-y: auto; display: flex; flex-direction: column; gap: 16px; background: var(--bg); }
+    .msg { max-width: 96%; padding: 12px 16px; border-radius: 18px; font-size: 14px; line-height: 1.65; word-wrap: break-word; }
+    .msg.user { align-self: flex-end; background: var(--user-msg); color: #fff; white-space: pre-wrap; }
+    .msg.ai { align-self: flex-start; background: var(--ai-msg); border: 1px solid #2e2e2e; width: 100%; border-radius: 12px; padding: 14px 16px; position: relative; }
+    .msg-content { min-height: 1em; }
+    .msg-content p { margin: 0 0 8px; } .msg-content p:last-child { margin: 0; }
+    .msg-content ul, .msg-content ol { margin: 6px 0 6px 20px; padding: 0; }
+    .msg-content li { margin-bottom: 4px; }
+    .msg-content h1,.msg-content h2,.msg-content h3 { margin: 10px 0 6px; font-size: 1em; }
+    .msg-content strong { color: #ddd; }
+    .msg-content pre { background: #0d0d0d; padding: 12px; border-radius: 8px; overflow-x: auto; font-family: 'Fira Code', monospace; font-size: 12px; border: 1px solid #333; margin: 8px 0; }
+    .msg-content code { font-family: 'Fira Code', monospace; background: #2a2a2a; padding: 2px 5px; border-radius: 4px; font-size: 12px; }
+    .msg-content pre code { background: none; padding: 0; }
+    .msg-actions { display: flex; justify-content: flex-end; align-items: center; gap: 8px; margin-top: 10px; padding-top: 8px; border-top: 1px solid #2a2a2a; flex-wrap: wrap; }
+    .msg-copy-btn { background: #2a2a2a; color: #888; border: 1px solid #3a3a3a; border-radius: 6px; padding: 3px 10px; font-size: 11px; cursor: pointer; transition: all 0.2s; opacity: 0; }
+    .msg.ai:hover .msg-copy-btn { opacity: 1; }
+    .msg-copy-btn:hover { background: var(--primary); color: #fff; border-color: var(--primary); }
+    @media (max-width: 768px) { .msg-copy-btn { opacity: 1; } }
+
+    /* ── Spinner ── */
+    .spinner { width: 18px; height: 18px; border: 2px solid rgba(255,255,255,0.2); border-top: 2px solid var(--primary); border-radius: 50%; animation: spin 0.9s linear infinite; display: inline-block; vertical-align: middle; margin-right: 8px; }
+    @keyframes spin { 100% { transform: rotate(360deg); } }
+
+    /* ── Input Area ── */
+    .input-container { padding: 12px 14px; background: var(--bg); border-top: 1px solid var(--border); display: flex; flex-direction: column; gap: 8px; flex-shrink: 0; position: relative; }
+    .input-row { display: flex; gap: 8px; align-items: flex-end; }
+    #user-prompt { flex: 1; min-height: 44px; max-height: 140px; background: #2f2f2f; border: 1px solid #444; border-radius: 22px; padding: 10px 18px; color: #fff; font-size: 15px; outline: none; resize: none; font-family: inherit; }
+    #user-prompt:focus { border-color: var(--primary); }
+    .file-label { display: flex; align-items: center; justify-content: center; width: 44px; height: 44px; background: #333; border-radius: 50%; cursor: pointer; font-size: 18px; flex-shrink: 0; transition: background 0.2s; }
+    .file-label:hover { background: #444; }
+    .ai-settings-label { display: flex; align-items: center; justify-content: center; width: 44px; height: 44px; background: #333; border-radius: 50%; cursor: pointer; font-size: 16px; flex-shrink: 0; border: none; color: #ccc; transition: background 0.2s; }
+    .ai-settings-label:hover { background: var(--primary); color: #fff; }
+    .send-btn { background: var(--primary); color: white; border: none; width: 44px; height: 44px; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0; font-size: 18px; transition: opacity 0.2s; }
+    .send-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    /* ── Multi-file preview strip ── */
+    .file-preview-strip { display: flex; flex-wrap: wrap; gap: 6px; padding-bottom: 6px; }
+    .file-chip { position: relative; display: flex; align-items: center; gap: 5px; background: #2a2a2a; border: 1px solid #3a3a3a; border-radius: 8px; padding: 4px 8px 4px 6px; font-size: 11px; color: #ccc; max-width: 140px; }
+    .file-chip img { width: 28px; height: 28px; border-radius: 4px; object-fit: cover; flex-shrink: 0; }
+    .file-chip .chip-icon { font-size: 18px; flex-shrink: 0; }
+    .file-chip .chip-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; min-width: 0; }
+    .file-chip .chip-del { background: none; border: none; color: #666; cursor: pointer; font-size: 14px; padding: 0 0 0 2px; line-height: 1; flex-shrink: 0; transition: color 0.15s; }
+    .file-chip .chip-del:hover { color: var(--danger); }
+    .attachment-menu { display: none; position: absolute; bottom: 68px; left: 14px; background: #2a2a2a; border: 1px solid #444; border-radius: 12px; box-shadow: 0 8px 24px rgba(0,0,0,0.5); z-index: 1000; width: 160px; }
+    .attachment-menu.show { display: block; animation: menuFade 0.18s ease; }
+    @keyframes menuFade { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:translateY(0); } }
+    .menu-item { padding: 11px 15px; font-size: 13px; display: flex; align-items: center; gap: 9px; cursor: pointer; transition: background 0.15s; color: #eee; }
+    .menu-item:hover { background: #383838; }
+    .menu-item:first-child { border-radius: 12px 12px 0 0; }
+    .menu-item:last-child { border-radius: 0 0 12px 12px; }
+    .menu-divider { height: 1px; background: #3a3a3a; margin: 2px 0; }
+
+    /* ── Generate Button ── */
+    .generate-btn { background: var(--success); color: white; border: none; height: 32px; padding: 0 14px; border-radius: 16px; font-weight: bold; cursor: pointer; font-size: 12px; display: inline-flex; align-items: center; gap: 5px; box-shadow: 0 3px 10px rgba(16,185,129,0.3); transition: opacity 0.2s; }
+    .generate-btn:hover { opacity: 0.85; }
+
+    /* ── Code Editor ── */
+    .editor-wrapper { flex: 1; position: relative; display: flex; flex-direction: column; overflow: hidden; }
+    .editor-actions { position: absolute; top: 8px; right: 8px; display: flex; gap: 4px; z-index: 10; }
+    .action-btn { color: #fff; border: none; padding: 5px 9px; border-radius: 6px; cursor: pointer; font-size: 10px; font-weight: bold; opacity: 0.88; transition: 0.2s; display: inline-flex; align-items: center; gap: 3px; white-space: nowrap; }
+    .action-btn:hover { opacity: 1; transform: translateY(-1px); }
+    .import-btn, .upload-btn, .download-btn  { background: var(--color-bg-elevated); border: 1px solid #333; }
+    .search-btn  { background: var(--color-border); }
+    .deploy-btn  { background: var(--accent); }
+
+    /* ── CodeMirror ── */
+    .CodeMirror { flex: 1; height: 100% !important; font-family: 'Fira Code', 'Cascadia Code', monospace; font-size: 13.5px; background: #0d0d0d; line-height: 1.65; }
+    .CodeMirror-scroll { overflow-y: auto !important; overflow-x: auto !important; height: 100%; }
+    .CodeMirror-lines { padding: 50px 0 15px 0; }
+    .CodeMirror-dialog { background: #1e1e1e !important; border-bottom: 1px solid #444 !important; color: #eee !important; padding: 7px 14px !important; font-size: 13px !important; }
+    .CodeMirror-dialog input { background: #2a2a2a !important; color: #fff !important; border: 1px solid #555 !important; border-radius: 4px !important; padding: 4px 9px !important; outline: none !important; width: 190px; margin-left: 6px; }
+    .CodeMirror-dialog button { background: #374151; color: #fff; border: none; border-radius: 4px; padding: 3px 9px; cursor: pointer; margin-left: 4px; font-size: 12px; }
+
+    /* ── Preview ── */
+    #preview-frame { flex: 1; border: none; background: #fff; width: 100%; height: 100%; }
+    .debug-panel { background: var(--bg); border-top: 1px solid var(--border); padding: 11px 14px; display: flex; gap: 9px; align-items: flex-end; flex-shrink: 0; }
+    #debug-memo { flex: 1; min-height: 38px; max-height: 95px; background: #2f2f2f; border: 1px solid #444; border-radius: 19px; padding: 9px 14px; color: #fff; font-size: 13px; outline: none; resize: none; font-family: inherit; }
+    .debug-btn { background: #eab308; color: #000; border: none; height: 38px; padding: 0 14px; border-radius: 19px; font-weight: bold; cursor: pointer; font-size: 12px; white-space: nowrap; }
+
+    /* ── Settings ── */
+    .settings { display: flex; flex-direction: column; flex: 1; overflow: hidden; }
+    .settings-tabs-header { display: flex; border-bottom: 1px solid var(--border); gap: 4px; overflow-x: auto; flex-shrink: 0; padding: 0 20px; background: var(--sidebar); }
+    .settings-pane-scroll { flex: 1; overflow-y: auto; padding: 18px 20px 20px; }
+    .settings-tab-btn { flex: 1; min-width: 90px; background: none; border: none; color: #888; padding: 10px 4px; font-size: 11px; font-weight: bold; cursor: pointer; border-bottom: 2px solid transparent; transition: 0.2s; white-space: nowrap; }
+    .settings-tab-btn.active { color: var(--primary); border-bottom-color: var(--primary); }
+    .settings-tab-pane { display: none; }
+    .settings-tab-pane.active { display: block; }
+    
+    .settings-section { margin-bottom: 20px; padding-bottom: 18px; border-bottom: 1px solid #2a2a2a; }
+    .settings-section:last-of-type { border-bottom: none; }
+    .section-title { font-size: 10px; color: var(--primary); font-weight: bold; letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 12px; }
+    .field-row { display: flex; gap: 12px; }
+    .field { flex: 1; margin-bottom: 14px; }
+    .settings label { display: block; font-size: 10px; color: #777; margin-bottom: 6px; font-weight: bold; letter-spacing: 0.06em; text-transform: uppercase; }
+    .settings input[type="password"], .settings input[type="text"], .settings textarea, .settings select {
+      width: 100%; background: #2f2f2f; border: 1px solid #444; border-radius: 8px;
+      padding: 10px 12px; color: #fff; font-size: 13px; outline: none; transition: border 0.2s;
+      box-sizing: border-box; font-family: inherit;
+    }
+    .settings input:focus, .settings textarea:focus, .settings select:focus { border-color: var(--primary); }
+    .settings select { appearance: none; cursor: pointer; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='white' viewBox='0 0 16 16'%3E%3Cpath d='M7.247 11.14 2.451 5.658C2.185 5.355 2.402 5 2.805 5h9.39c.403 0 .62.355.354.658l-4.796 5.482a.5.5 0 0 1-.748 0z'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 12px center; }
+    .list-item { display: flex; justify-content: space-between; align-items: center; background: #252525; padding: 8px 12px; border-radius: 7px; margin-bottom: 6px; font-size: 12px; border: 1px solid #2e2e2e; gap: 8px; }
+    .list-item .item-label { color: #ccc; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .list-item .item-sub { font-size: 10px; color: #555; margin-top: 1px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 180px; }
+    .list-item .item-badge { font-size: 9px; color: #666; background: #333; padding: 1px 6px; border-radius: 4px; white-space: nowrap; flex-shrink: 0; }
+    .list-item .item-del { background: none; border: none; color: #555; cursor: pointer; padding: 2px 6px; font-size: 14px; transition: color 0.2s; flex-shrink: 0; }
+    .list-item .item-del:hover { color: var(--danger); }
+    .add-row { display: flex; gap: 8px; margin-top: 8px; }
+    .add-row input { flex: 1; }
+    .add-btn { background: var(--primary); color: #fff; border: none; border-radius: 7px; padding: 9px 14px; font-size: 12px; font-weight: bold; cursor: pointer; white-space: nowrap; transition: opacity 0.2s; }
+    .add-btn:hover { opacity: 0.85; }
+    .save-btn { background: #fff; color: #000; border: none; padding: 14px; border-radius: 8px; font-weight: bold; width: 100%; margin-top: 8px; cursor: pointer; font-size: 14px; transition: 0.2s; }
+    .save-btn:hover { background: #ddd; }
+
+    /* ── Modal Base ── */
+    .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.72); z-index: 2000; align-items: center; justify-content: center; }
+    .modal-overlay.show { display: flex; }
+    .modal { background: #1e1e1e; border: 1px solid #444; border-radius: 12px; width: 92%; max-width: 500px; max-height: 80vh; display: flex; flex-direction: column; overflow: hidden; }
+    .modal-header { display: flex; justify-content: space-between; align-items: center; padding: 14px 16px; border-bottom: 1px solid #333; }
+    .modal-header h3 { margin: 0; font-size: 14px; color: #fff; }
+    .modal-close { background: none; border: none; color: #888; font-size: 20px; cursor: pointer; }
+    .modal-body { padding: 14px 16px; overflow-y: auto; flex: 1; }
+    .modal-input { width: 100%; background: #2a2a2a; border: 1px solid #444; border-radius: 8px; padding: 9px 11px; color: #fff; font-size: 13px; outline: none; margin-bottom: 11px; box-sizing: border-box; font-family: inherit; }
+    .modal-input:focus { border-color: var(--primary); }
+    .repo-list, .file-list { list-style: none; padding: 0; margin: 0; }
+    .repo-list li, .file-list li { padding: 9px 11px; border-bottom: 1px solid #2a2a2a; cursor: pointer; font-size: 12px; color: #ccc; transition: background 0.15s; display: flex; justify-content: space-between; align-items: center; }
+    .repo-list li:hover, .file-list li:hover { background: #2a2a2a; }
+    .repo-meta-sm { font-size: 10px; color: #555; }
+    .modal-status { font-size: 11px; color: #888; padding: 7px 0; text-align: center; }
+    .modal-btn { background: var(--primary); color: #fff; border: none; padding: 9px 18px; border-radius: 8px; cursor: pointer; font-size: 12px; font-weight: bold; width: 100%; margin-top: 7px; display: inline-flex; align-items: center; justify-content: center; }
+    .modal-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    /* ── Bottom Sheet (AI Settings Modal) ── */
+    .bottom-sheet-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.72); z-index: 2000; align-items: flex-end; justify-content: center; }
+    .bottom-sheet-overlay.show { display: flex; }
+    .bottom-sheet { background: #1c1c1c; border: 1px solid #3a3a3a; border-bottom: none; border-radius: 16px 16px 0 0; width: 100%; max-width: 640px; padding: 20px; max-height: 78vh; overflow-y: auto; animation: slideUp 0.22s ease-out; }
+    @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+    .sheet-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px; }
+    .sheet-header h3 { margin: 0; font-size: 14px; color: #fff; }
+    .sheet-close { background: none; border: none; color: #888; font-size: 20px; cursor: pointer; }
+    .sheet-field { margin-bottom: 14px; }
+    .sheet-field label { display: block; font-size: 10px; color: #777; margin-bottom: 6px; font-weight: bold; letter-spacing: 0.06em; text-transform: uppercase; }
+    .sheet-field select { width: 100%; background: #2f2f2f; border: 1px solid #444; border-radius: 8px; padding: 10px 12px; color: #fff; font-size: 14px; outline: none; font-family: inherit; appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='white' viewBox='0 0 16 16'%3E%3Cpath d='M7.247 11.14 2.451 5.658C2.185 5.355 2.402 5 2.805 5h9.39c.403 0 .62.355.354.658l-4.796 5.482a.5.5 0 0 1-.748 0z'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 12px center; cursor: pointer; }
+    .sheet-field select:focus { border-color: var(--primary); outline: none; }
+
+    /* ══════════════════════════════════════
+       RAG Styles
+    ══════════════════════════════════════ */
+    .rag-layout { display: flex; flex-direction: column; height: 100%; overflow: hidden; }
+    /* top panel: docs */
+    .rag-docs-panel { flex-shrink: 0; background: var(--sidebar); border-bottom: 1px solid var(--border); display: flex; flex-direction: column; max-height: 42%; }
+    .rag-panel-header { display: flex; align-items: center; gap: 8px; padding: 8px 14px; flex-shrink: 0; }
+    .rag-panel-title { font-size: 11px; font-weight: bold; color: #666; flex: 1; }
+    .rag-upload-btn { background: var(--primary); color: #fff; border: none; border-radius: 6px; padding: 5px 12px; font-size: 11px; font-weight: bold; cursor: pointer; white-space: nowrap; transition: opacity 0.2s; }
+    .rag-upload-btn:hover { opacity: 0.85; }
+    .rag-status-bar { font-size: 10px; color: #555; padding: 0 14px 6px; flex-shrink: 0; }
+    .rag-drop-zone { border: 2px dashed #333; border-radius: 10px; margin: 0 14px 8px; padding: 16px; text-align: center; font-size: 12px; color: #555; cursor: pointer; transition: all 0.2s; flex-shrink: 0; }
+    .rag-drop-zone.drag-over { border-color: var(--primary); color: var(--primary); background: rgba(59,130,246,0.05); }
+    .rag-doc-list { overflow-y: auto; flex: 1; padding: 0 14px 8px; }
+    .rag-doc-item { display: flex; align-items: center; gap: 8px; background: #252525; border: 1px solid #2e2e2e; border-radius: 8px; padding: 8px 10px; margin-bottom: 5px; font-size: 12px; }
+    .rag-doc-icon { font-size: 16px; flex-shrink: 0; }
+    .rag-doc-info { flex: 1; min-width: 0; }
+    .rag-doc-name { color: #ddd; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .rag-doc-meta { font-size: 10px; color: #555; margin-top: 2px; }
+    .rag-doc-status { font-size: 10px; padding: 2px 7px; border-radius: 8px; white-space: nowrap; flex-shrink: 0; }
+    .rag-doc-status.indexing { background: #1e2a1e; color: #6ba36b; border: 1px solid #2a3a2a; }
+    .rag-doc-status.done { background: #1e2a1e; color: var(--success); border: 1px solid #2a4a2a; }
+    .rag-doc-status.error { background: #2a1e1e; color: var(--danger); border: 1px solid #4a2a2a; }
+    .rag-doc-del { background: none; border: none; color: #444; cursor: pointer; font-size: 15px; padding: 2px 5px; transition: color 0.15s; flex-shrink: 0; }
+    .rag-doc-del:hover { color: var(--danger); }
+    .rag-progress-bar { height: 2px; background: #1a1a1a; border-radius: 1px; margin: 3px 0 0; overflow: hidden; }
+    .rag-progress-fill { height: 100%; background: var(--primary); border-radius: 1px; transition: width 0.3s; }
+    /* bottom panel: chat */
+    .rag-chat-panel { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+    .rag-chat-header { display: flex; align-items: center; gap: 8px; padding: 7px 14px; background: var(--sidebar); border-bottom: 1px solid var(--border); flex-shrink: 0; }
+    .rag-chat-title { font-size: 11px; font-weight: bold; color: #666; flex: 1; }
+    .rag-settings-btn { background: #2a2a2a; border: 1px solid #3a3a3a; color: #888; border-radius: 6px; padding: 4px 10px; font-size: 11px; cursor: pointer; transition: all 0.15s; }
+    .rag-settings-btn:hover { background: #333; color: #ccc; }
+    #rag-log { flex: 1; padding: 14px; overflow-y: auto; display: flex; flex-direction: column; gap: 14px; }
+    .rag-msg { font-size: 14px; line-height: 1.65; word-wrap: break-word; }
+    .rag-msg.user { align-self: flex-end; background: var(--user-msg); color: #fff; padding: 10px 15px; border-radius: 18px; max-width: 88%; white-space: pre-wrap; }
+    .rag-msg.ai { align-self: flex-start; width: 100%; }
+    .rag-msg-content { color: var(--text); }
+    .rag-msg-content p { margin: 0 0 8px; } .rag-msg-content p:last-child { margin: 0; }
+    .rag-msg-content pre { background: #0d0d0d; padding: 10px; border-radius: 7px; overflow-x: auto; font-family: 'Fira Code', monospace; font-size: 12px; border: 1px solid #333; margin: 6px 0; }
+    .rag-msg-content code { font-family: 'Fira Code', monospace; background: #2a2a2a; padding: 2px 5px; border-radius: 3px; font-size: 12px; }
+    .rag-msg-content pre code { background: none; padding: 0; }
+    /* Source citations */
+    .rag-sources { margin-top: 10px; padding-top: 8px; border-top: 1px solid #222; }
+    .rag-sources-label { font-size: 10px; color: #555; font-weight: bold; letter-spacing: 0.06em; margin-bottom: 5px; }
+    .rag-source-chip { display: inline-flex; align-items: center; gap: 5px; background: #1a1e2a; border: 1px solid #2a2e3a; border-radius: 6px; padding: 3px 9px; font-size: 10px; color: #6090c0; margin: 2px 3px 2px 0; cursor: pointer; transition: background 0.15s; }
+    .rag-source-chip:hover { background: #242a3a; }
+    .rag-source-preview { display: none; background: #12151e; border: 1px solid #1e2436; border-radius: 8px; padding: 10px 12px; margin-top: 6px; font-size: 11px; color: #889; line-height: 1.6; max-height: 120px; overflow-y: auto; }
+    .rag-source-preview.show { display: block; }
+    /* Input */
+    .rag-input-area { padding: 10px 14px 12px; background: var(--bg); border-top: 1px solid var(--border); flex-shrink: 0; }
+    .rag-input-row { display: flex; gap: 8px; align-items: flex-end; }
+    #rag-prompt { flex: 1; min-height: 42px; max-height: 130px; background: #2f2f2f; border: 1px solid #444; border-radius: 20px; padding: 10px 16px; color: #fff; font-size: 14px; outline: none; resize: none; font-family: inherit; }
+    #rag-prompt:focus { border-color: var(--primary); }
+    .rag-send-btn { background: var(--primary); color: #fff; border: none; width: 42px; height: 42px; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 17px; flex-shrink: 0; transition: opacity 0.2s; }
+    .rag-send-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+    .rag-no-docs { text-align: center; color: #444; font-size: 12px; padding: 30px 20px; }
+    /* RAG settings drawer */
+    .rag-config { padding: 10px 14px 4px; background: #161920; border-bottom: 1px solid var(--border); flex-shrink: 0; display: none; }
+    .rag-config.open { display: block; }
+    .rag-config-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 12px; }
+    .rag-config-field label { display: block; font-size: 9px; color: #666; font-weight: bold; letter-spacing: 0.06em; text-transform: uppercase; margin-bottom: 4px; }
+    .rag-config-field input[type=range] { width: 100%; accent-color: var(--primary); }
+    .rag-config-field input[type=number], .rag-config-field select { width: 100%; background: #2a2a2a; border: 1px solid #3a3a3a; border-radius: 5px; padding: 5px 8px; color: #ddd; font-size: 12px; outline: none; }
+    .rag-config-val { font-size: 11px; color: var(--primary); font-weight: bold; margin-left: 6px; }
+    /* Chunk expand modal */
+    .chunk-modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.75); z-index: 3000; align-items: flex-end; justify-content: center; }
+    .chunk-modal-overlay.show { display: flex; }
+    .chunk-modal { background: #1a1d28; border: 1px solid #2a3050; border-bottom: none; border-radius: 16px 16px 0 0; width: 100%; max-width: 680px; padding: 20px; max-height: 70vh; overflow-y: auto; animation: slideUp 0.2s ease-out; }
+    .chunk-modal h4 { font-size: 12px; color: #6090c0; margin: 0 0 4px; }
+    .chunk-modal .chunk-text { font-size: 13px; color: #ccc; line-height: 1.7; white-space: pre-wrap; margin-top: 8px; padding: 12px; background: #12151e; border-radius: 8px; border: 1px solid #1e2436; }
+    .chunk-modal-close { float: right; background: none; border: none; color: #888; font-size: 20px; cursor: pointer; }
+
+    /* ── Pipeline CSS ── */
+    .pipeline-run-btn { display: flex; align-items: center; justify-content: center; width: 44px; height: 44px; background: #1e3a1e; border: 1px solid var(--success); border-radius: 50%; cursor: pointer; font-size: 18px; flex-shrink: 0; transition: background 0.2s; }
+    .pipeline-run-btn:hover { background: var(--success); }
+    .pipeline-run-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+    .pipeline-card { background: #1a1f2e; border: 1px solid #2e3a4e; border-radius: 12px; padding: 14px 16px; margin-bottom: 8px; }
+    .pipeline-card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; gap: 8px; }
+    .pipeline-card-name { font-size: 13px; font-weight: bold; color: #e0e8ff; flex: 1; }
+    .pipeline-default-badge { font-size: 9px; background: var(--primary); color: #fff; padding: 2px 7px; border-radius: 8px; }
+    .pipeline-actions { display: flex; gap: 6px; }
+    .pipeline-btn { background: #2a3040; border: 1px solid #3a4050; color: #aaa; border-radius: 6px; padding: 4px 9px; font-size: 11px; cursor: pointer; transition: all 0.15s; }
+    .pipeline-btn:hover { background: #3a4050; color: #fff; }
+    .pipeline-btn.danger:hover { background: var(--danger); border-color: var(--danger); color: #fff; }
+    .step-list { display: flex; flex-direction: column; gap: 4px; }
+    .step-item { background: #141820; border: 1px solid #2a2e3a; border-radius: 8px; overflow: hidden; }
+    .step-header { display: flex; align-items: center; gap: 8px; padding: 8px 10px; cursor: pointer; user-select: none; }
+    .step-drag-handle { color: #444; font-size: 16px; cursor: grab; flex-shrink: 0; touch-action: none; }
+    .step-drag-handle:active { cursor: grabbing; }
+    .step-num { font-size: 10px; color: #555; font-weight: bold; min-width: 18px; }
+    .step-name-txt { font-size: 12px; color: #ccc; flex: 1; }
+    .step-badges { display: flex; gap: 4px; flex-shrink: 0; flex-wrap: wrap; justify-content: flex-end; }
+    .step-badge { font-size: 9px; padding: 2px 6px; border-radius: 5px; white-space: nowrap; }
+    .step-badge.model { background: #1e2a3a; color: #6ba3d6; border: 1px solid #2a3a4a; }
+    .step-badge.approval { background: #2a1e1e; color: #d4845a; border: 1px solid #3a2a1e; }
+    .step-badge.disabled { background: #222; color: #555; border: 1px solid #2a2a2a; }
+    .step-body { display: none; padding: 10px 12px; border-top: 1px solid #1e2230; background: #0f1118; }
+    .step-body.open { display: block; }
+    .step-field { margin-bottom: 10px; }
+    .step-field label { display: block; font-size: 9px; color: #666; font-weight: bold; letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 5px; }
+    .step-field input[type=text], .step-field select, .step-field textarea { width: 100%; background: #1a1e28; border: 1px solid #2a2e3a; border-radius: 6px; padding: 7px 10px; color: #ddd; font-size: 12px; outline: none; font-family: inherit; box-sizing: border-box; }
+    .step-field input:focus, .step-field select:focus, .step-field textarea:focus { border-color: var(--primary); }
+    .step-field textarea { resize: vertical; min-height: 72px; }
+    .step-field select { appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' fill='%23888' viewBox='0 0 16 16'%3E%3Cpath d='M7.247 11.14 2.451 5.658C2.185 5.355 2.402 5 2.805 5h9.39c.403 0 .62.355.354.658l-4.796 5.482a.5.5 0 0 1-.748 0z'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 9px center; cursor: pointer; }
+    .step-field-row { display: flex; gap: 8px; }
+    .step-field-row .step-field { flex: 1; }
+    .step-toggle-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; font-size: 12px; color: #aaa; }
+    .toggle-switch { position: relative; width: 38px; height: 22px; flex-shrink: 0; }
+    .toggle-switch input { opacity: 0; width: 0; height: 0; }
+    .toggle-slider { position: absolute; inset: 0; background: #333; border-radius: 22px; cursor: pointer; transition: 0.2s; }
+    .toggle-slider:before { content:''; position:absolute; width:16px; height:16px; left:3px; top:3px; background:#888; border-radius:50%; transition:0.2s; }
+    .toggle-switch input:checked + .toggle-slider { background: var(--primary); }
+    .toggle-switch input:checked + .toggle-slider:before { transform:translateX(16px); background:#fff; }
+    .step-vars-hint { font-size: 10px; color: #445; margin-top: 4px; line-height: 1.5; }
+    .step-del-btn { background: none; border: 1px solid #3a2a2a; color: #844; border-radius: 5px; padding: 5px 10px; font-size: 11px; cursor: pointer; margin-top: 6px; transition: all 0.15s; }
+    .step-del-btn:hover { background: var(--danger); border-color: var(--danger); color: #fff; }
+    .step-item.dragging { opacity: 0.4; border: 1px dashed var(--primary); }
+    .step-item.drag-over { border-color: var(--success); background: #0d1a0d; }
+    .pipeline-progress-card { background: #0f1520; border: 1px solid #1e3050; border-radius: 10px; padding: 12px 14px; margin-bottom: 6px; }
+    .pipeline-progress-title { font-size: 11px; color: #6090c0; font-weight: bold; margin-bottom: 8px; }
+    .pipeline-step-row { display: flex; align-items: center; gap: 8px; padding: 4px 0; font-size: 12px; }
+    .pipeline-step-status { font-size: 14px; width: 20px; text-align: center; }
+    .pipeline-step-label { color: #aaa; flex: 1; }
+    .pipeline-step-label.active { color: #fff; font-weight: bold; }
+    .pipeline-step-label.done { color: #10b981; }
+    .pipeline-step-label.error { color: var(--danger); }
+    .pipeline-sep { height: 1px; background: #1e2a3a; margin: 10px 0; }
+    .approval-bar { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
+    .approval-btn { border: none; border-radius: 8px; padding: 8px 14px; font-size: 12px; font-weight: bold; cursor: pointer; transition: opacity 0.2s; }
+    .approval-btn.ok { background: var(--success); color: #fff; }
+    .approval-btn.revise { background: #374151; color: #eee; }
+    .approval-btn:hover { opacity: 0.85; }
+
+    /* ── BG Notify ── */
+    .bg-notify { display: none; position: fixed; top: 10px; right: 10px; background: #1e40af; color: #fff; padding: 9px 14px; border-radius: 8px; font-size: 12px; z-index: 3000; box-shadow: 0 4px 12px rgba(0,0,0,0.4); }
+    .bg-notify.show { display: flex; align-items: center; gap: 8px; }
+
+    /* ── Toast ── */
+    #toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: #2a2a2a; color: #fff; padding: 10px 20px; border-radius: 8px; font-size: 12px; opacity: 0; pointer-events: none; transition: opacity 0.25s; z-index: 9999; white-space: nowrap; }
+    #toast.show { opacity: 1; }
+  </style>
+</head>
+<body>
+
+
+<div class="content">
+
+  <!-- ──────────── CHAT ──────────── -->
+  <div id="p-chat" class="page active">
+    <div class="chat-header">
+      <span class="header-title">CONVERSATION</span>
+      <div class="header-right">
+        <span id="chat-provider-badge" class="provider-badge gemini" onclick="openChatSettingsModal()">Gemini</span>
+        <span id="chat-model-badge"    class="model-badge">2.5-flash</span>
+      </div>
+    </div>
+    <div id="chat-log">
+      <div class="msg ai">
+        <div class="msg-content">AI Web Studio Pro 2026 起動。<br>要件を教えてください。プランが固まったら「⚡️ コードを作成」ボタンを表示します。</div>
+      </div>
+    </div>
+    <div class="input-container">
+      <div id="attach-menu" class="attachment-menu">
+        <div class="menu-item" onclick="triggerFile('camera')">📸 カメラ</div>
+        <div class="menu-item" onclick="triggerFile('gallery')">🖼️ ギャラリー</div>
+        <div class="menu-item" onclick="triggerFile('files')">📁 ファイル</div>
+      </div>
+      <div id="file-preview-strip" class="file-preview-strip"></div>
+      <input type="file" id="file-camera"  accept="image/*" capture="environment" style="display:none" onchange="handleAttachment(this)">
+      <input type="file" id="file-gallery" accept="image/*" multiple style="display:none" onchange="handleAttachment(this)">
+      <input type="file" id="file-files"   accept="*/*" multiple style="display:none" onchange="handleAttachment(this)">
+      <div class="input-row">
+        <div class="file-label" id="attach-btn" onclick="toggleAttachmentMenu()" title="ファイルを添付 / メニュー">＋</div>
+        <button class="ai-settings-label" onclick="openChatSettingsModal()" title="AI設定">🛠️</button>
+        <textarea id="user-prompt" placeholder="例：ダークモードのTodoアプリを作りたい..." rows="1" oninput="autoGrow(this)"></textarea>
+        <button class="pipeline-run-btn" id="pipeline-run-btn" onclick="startDefaultPipeline()" title="パイプライン実行" disabled>▶</button>
+        <button class="send-btn" id="send-btn" onclick="askAI()">✈️</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ──────────── SETTINGS ──────────── -->
+  <div id="p-settings" class="page settings">
+    <div class="settings-tabs-header">
+      <button class="settings-tab-btn active" onclick="switchSettingsTab('keys', this)" data-tab-id="keys">🔑 認証・キー</button>
+      <button class="settings-tab-btn" onclick="switchSettingsTab('models', this)" data-tab-id="models">🧠 AIモデル</button>
+      <button class="settings-tab-btn" onclick="switchSettingsTab('prompts', this)" data-tab-id="prompts">🎭 プロンプト</button>
+      <button class="settings-tab-btn" onclick="switchSettingsTab('pipelines', this)" data-tab-id="pipelines">🔗 パイプライン</button>
+    </div>
+
+    <div class="settings-pane-scroll">
+    <!-- Tab 1: Keys -->
+    <div id="settings-pane-keys" class="settings-tab-pane active">
+      <div class="settings-section">
+        <div class="section-title">🔑 API キー設定</div>
+        <div class="field"><label>Google Gemini</label>
+          <input type="password" id="api-key-gemini" placeholder="AIzaSy... (未設定時はプロキシを使用)">
+        </div>
+        <div class="field"><label>Anthropic Claude</label>
+          <input type="password" id="api-key-claude" placeholder="sk-ant-...">
+        </div>
+        <div class="field"><label>OpenAI GPT</label>
+          <input type="password" id="api-key-gpt" placeholder="sk-...">
+        </div>
+        <div class="field"><label>xAI Grok</label>
+          <input type="password" id="api-key-grok" placeholder="xai-...">
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Tab 2: Models -->
+    <div id="settings-pane-models" class="settings-tab-pane">
+      <div class="settings-section">
+        <div class="section-title">💬 CHAT モデル設定</div>
+        <div class="field-row">
+          <div class="field"><label>プロバイダー</label>
+            <select id="chat-provider-setting" onchange="onChatProviderSettingChange()">
+              <option value="gemini">Gemini</option>
+              <option value="claude">Claude</option>
+              <option value="gpt">GPT</option>
+              <option value="grok">Grok</option>
+            </select>
+          </div>
+          <div class="field"><label>モデル</label>
+            <select id="chat-model-setting"></select>
+          </div>
+        </div>
+      </div>
+
+      <div class="settings-section">
+        <div class="section-title">🗂 AI モデル管理</div>
+        <div class="field"><label>プロバイダー</label>
+          <select id="mgmt-provider" onchange="loadModelList()">
+            <option value="gemini">Gemini</option>
+            <option value="claude">Claude</option>
+            <option value="gpt">GPT</option>
+            <option value="grok">Grok</option>
+          </select>
+        </div>
+        <div id="model-list"></div>
+        <div class="add-row">
+          <input type="text" id="new-model-input" placeholder="新しいモデル名 (例: gpt-4-0613)">
+          <button class="add-btn" onclick="addCustomModel()">追加</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tab 3: Prompts -->
+    <div id="settings-pane-prompts" class="settings-tab-pane">
+      <div class="settings-section">
+        <div class="section-title">🎭 役割 / システムプロンプト</div>
+        <div id="role-list"></div>
+        <div class="field" style="margin-top:10px"><label>役割名</label>
+          <input type="text" id="new-role-name" placeholder="例：翻訳者">
+        </div>
+        <div class="field"><label>システムプロンプト</label>
+          <textarea id="new-role-prompt" rows="3" placeholder="あなたは..."></textarea>
+        </div>
+        <div style="display:flex;gap:8px;">
+          <button class="add-btn" id="role-add-btn" style="flex:1;padding:10px" onclick="addCustomRole()">役割を追加</button>
+          <button class="add-btn" id="role-update-btn" style="flex:1;padding:10px;display:none;background:var(--accent)" onclick="updateCustomRole()">役割を更新</button>
+          <button class="add-btn" id="role-cancel-btn" style="padding:10px;display:none;background:#444" onclick="cancelEditRole()">キャンセル</button>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Tab 4: Pipelines -->
+    <div id="settings-pane-pipelines" class="settings-tab-pane">
+      <div class="settings-section">
+        <div class="section-title">🔗 パイプライン管理</div>
+        <p style="font-size:11px;color:#666;margin-bottom:12px;line-height:1.6;">複数のAIステップを順番に実行します。前のステップの出力を次のステップで参照できます。チャット画面の ▶ ボタンでデフォルトパイプラインを実行できます。</p>
+        <div class="add-row" style="margin-bottom:12px;">
+          <input type="text" id="new-pipeline-name" placeholder="パイプライン名 (例: 要件→コード→評価)">
+          <button class="add-btn" onclick="createNewPipeline()">作成</button>
+        </div>
+        <div id="pipeline-list"></div>
+      </div>
+      <div style="font-size:10px;color:#444;padding:4px 0;line-height:1.7;">
+        使えるテンプレート変数:<br>
+        <code style="background:#1a1a1a;padding:1px 4px;border-radius:3px;color:#6ba3d6;">{{user_input}}</code> ユーザー入力 &nbsp;
+        <code style="background:#1a1a1a;padding:1px 4px;border-radius:3px;color:#6ba3d6;">{{prev_output}}</code> 直前の出力<br>
+        <code style="background:#1a1a1a;padding:1px 4px;border-radius:3px;color:#6ba3d6;">{{output:ラベル}}</code> 指定ラベルの出力 &nbsp;
+        <code style="background:#1a1a1a;padding:1px 4px;border-radius:3px;color:#6ba3d6;">{{conversation}}</code> 会話履歴
+      </div>
+    </div>
+
+    <button class="save-btn" id="save-btn" onclick="saveSettings()">設定を保存</button>
+    </div><!-- /settings-pane-scroll -->
+  </div>
+
+  <!-- ──────────── RAG ──────────── -->
+  <div id="p-rag" class="page">
+    <div class="rag-layout">
+
+      <!-- Documents panel -->
+      <div class="rag-docs-panel">
+        <div class="rag-panel-header">
+          <span class="rag-panel-title">📚 ドキュメント</span>
+          <button class="rag-upload-btn" onclick="document.getElementById('rag-file-input').click()">＋ 追加</button>
+          <input type="file" id="rag-file-input" multiple accept=".txt,.md,.markdown,.pdf,.png,.jpg,.jpeg,.webp,.html,.csv" style="display:none" onchange="handleRagFiles(this)">
+        </div>
+        <div id="rag-status-bar" class="rag-status-bar">ドキュメント未登録</div>
+        <div class="rag-drop-zone" id="rag-drop-zone" onclick="document.getElementById('rag-file-input').click()">
+          ここにファイルをドロップ、またはタップして選択<br>
+          <span style="font-size:10px;color:#444;">TXT · MD · PDF · PNG/JPG · HTML · CSV</span>
+        </div>
+        <div class="rag-doc-list" id="rag-doc-list"></div>
+      </div>
+
+      <!-- RAG Chat panel -->
+      <div class="rag-chat-panel">
+        <div class="rag-chat-header">
+          <span class="rag-chat-title" id="rag-chat-title">RAG チャット</span>
+          <button class="rag-settings-btn" onclick="toggleRagConfig()">⚙ 検索設定</button>
+        </div>
+
+        <!-- Config drawer -->
+        <div class="rag-config" id="rag-config">
+          <div class="rag-config-grid">
+            <div class="rag-config-field">
+              <label>取得チャンク数 k <span class="rag-config-val" id="rag-k-val">6</span></label>
+              <input type="range" min="1" max="20" value="6" id="rag-k" oninput="document.getElementById('rag-k-val').textContent=this.value">
+            </div>
+            <div class="rag-config-field">
+              <label>ベクトル比率 <span class="rag-config-val" id="rag-alpha-val">0.6</span></label>
+              <input type="range" min="0" max="10" value="6" id="rag-alpha" oninput="document.getElementById('rag-alpha-val').textContent=(this.value/10).toFixed(1)">
+            </div>
+            <div class="rag-config-field">
+              <label>チャンクサイズ (文字)</label>
+              <input type="number" id="rag-chunk-size" value="400" min="100" max="1500">
+            </div>
+            <div class="rag-config-field">
+              <label>オーバーラップ (文字)</label>
+              <input type="number" id="rag-chunk-overlap" value="80" min="0" max="300">
+            </div>
+            <div class="rag-config-field" style="grid-column:1/-1">
+              <label>リランキング</label>
+              <select id="rag-rerank">
+                <option value="none">なし（高速）</option>
+                <option value="llm" selected>LLM リランク（高精度）</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <div id="rag-log">
+          <div class="rag-no-docs" id="rag-empty-hint">
+            📂 ドキュメントを追加してチャットを始めましょう<br>
+            <span style="font-size:10px;color:#333;margin-top:6px;display:block;">GeminiのAPIキーが必要です（Embedding用）</span>
+          </div>
+        </div>
+
+        <div class="rag-input-area">
+          <div class="rag-input-row">
+            <textarea id="rag-prompt" placeholder="ドキュメントについて質問..." rows="1" oninput="autoGrow(this)"></textarea>
+            <button class="rag-send-btn" id="rag-send-btn" onclick="askRag()">↑</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /content -->
+
+<!-- ──────────── Footer Tabs ──────────── -->
+<div class="tabs">
+  <button class="tab-btn active" id="tab-chat"     onclick="showPage('chat',this)">
+    <span class="tab-icon">💬</span>CHAT
+  </button>
+  <button class="tab-btn"        id="tab-rag"      onclick="showPage('rag',this)">
+    <span class="tab-icon">📚</span>RAG
+  </button>
+  <button class="tab-btn"        id="tab-settings" onclick="showPage('settings',this)">
+    <span class="tab-icon">⚙️</span>SET
+  </button>
+</div>
+
+<!-- Chunk detail modal -->
+<div id="chunk-modal-overlay" class="chunk-modal-overlay" onclick="if(event.target===this)closeChunkModal()">
+  <div class="chunk-modal">
+    <button class="chunk-modal-close" onclick="closeChunkModal()">✕</button>
+    <h4 id="chunk-modal-doc"></h4>
+    <div style="font-size:10px;color:#445;" id="chunk-modal-meta"></div>
+    <div class="chunk-text" id="chunk-modal-text"></div>
+  </div>
+</div>
+
+
+<!-- ──────────── GitHub Import Modal ──────────── -->
+<div id="gh-import-modal" class="modal-overlay" onclick="if(event.target===this)closeGitHubImport()">
+  <div class="modal">
+    <div class="modal-header"><h3>📥 GitHub Import</h3>
+      <button class="modal-close" onclick="closeGitHubImport()">✕</button></div>
+    <div class="modal-body">
+      <div id="gh-step-repo">
+        <input id="gh-repo-search" class="modal-input" placeholder="リポジトリを検索..." oninput="filterImportRepos()">
+        <div id="gh-modal-status" class="modal-status"></div>
+        <ul id="gh-repo-list" class="repo-list"></ul>
+      </div>
+      <div id="gh-step-file" style="display:none">
+        <button class="modal-btn" style="background:#333;margin-bottom:10px" onclick="backToRepoList()">← リポジトリ一覧に戻る</button>
+        <div id="gh-file-status" class="modal-status"></div>
+        <ul id="gh-file-list" class="file-list"></ul>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ──────────── GitHub Deploy Modal ──────────── -->
+<div id="gh-deploy-modal" class="modal-overlay" onclick="if(event.target===this)closeGitHubDeploy()">
+  <div class="modal">
+    <div class="modal-header"><h3>🚀 GitHub Deploy</h3>
+      <button class="modal-close" onclick="closeGitHubDeploy()">✕</button></div>
+    <div class="modal-body" style="display:flex;flex-direction:column;gap:10px;">
+      <div id="deploy-step-token">
+        <p style="font-size:12px;color:#ccc;margin-top:0;">GitHub Personal Access Token (repo scope) を設定してください。</p>
+        <input type="password" id="deploy-token-input" class="modal-input" placeholder="ghp_...">
+        <button class="modal-btn" onclick="saveDeployToken()">保存 &amp; 認証</button>
+        <div id="deploy-token-status" class="modal-status"></div>
+      </div>
+      <div id="deploy-step-repo" style="display:none">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+          <button class="modal-btn" style="background:#333;width:auto;margin:0;padding:5px 11px;font-size:11px;" onclick="showDeployStep('token')">← Token設定</button>
+          <button class="modal-btn" style="background:#333;width:auto;margin:0;padding:5px 11px;font-size:11px;" onclick="fetchDeployRepos()">🔄 更新</button>
+        </div>
+        <button class="modal-btn" style="background:var(--success);margin-bottom:10px;" onclick="showDeployStep('new-repo')">＋ 新規リポジトリを作成</button>
+        <input id="deploy-repo-search" class="modal-input" placeholder="リポジトリを検索..." oninput="filterDeployRepos()">
+        <div id="deploy-repo-status" class="modal-status"></div>
+        <ul id="deploy-repo-list" class="repo-list"></ul>
+      </div>
+      <div id="deploy-step-new-repo" style="display:none;flex-direction:column;gap:10px;">
+        <button class="modal-btn" style="background:#333;width:auto;align-self:flex-start;margin:0;padding:5px 11px;font-size:11px;" onclick="showDeployStep('repo')">← リポジトリ選択に戻る</button>
+        <div><label style="display:block;font-size:11px;color:#888;margin-bottom:3px;">リポジトリ名 <span style="color:var(--danger)">*</span></label>
+          <input id="new-repo-name" class="modal-input" placeholder="my-awesome-project"></div>
+        <div><label style="display:block;font-size:11px;color:#888;margin-bottom:3px;">説明 (任意)</label>
+          <input id="new-repo-desc" class="modal-input" placeholder="A great project built with AI"></div>
+        <div><label style="display:block;font-size:11px;color:#888;margin-bottom:3px;">公開設定</label>
+          <select id="new-repo-private" class="modal-input" style="appearance:auto;background-image:none;padding-right:12px;">
+            <option value="false">Public</option><option value="true">Private</option>
+          </select></div>
+        <div id="new-repo-status" class="modal-status" style="text-align:left;color:#ccc;"></div>
+        <button class="modal-btn" id="new-repo-btn" onclick="createNewRepo()" style="background:var(--success);">✨ 作成してデプロイ準備</button>
+      </div>
+      <div id="deploy-step-details" style="display:none;flex-direction:column;gap:10px;">
+        <button class="modal-btn" style="background:#333;width:auto;align-self:flex-start;margin:0;padding:5px 11px;font-size:11px;" onclick="showDeployStep('repo')">← リポジトリ選択に戻る</button>
+        <div style="font-size:12px;color:#fff;">デプロイ先: <strong id="deploy-target-repo-name" style="color:var(--primary);"></strong></div>
+        <div style="display:flex;gap:10px;">
+          <div style="flex:1;"><label style="display:block;font-size:11px;color:#888;margin-bottom:3px;">ブランチ</label>
+            <input id="deploy-branch" class="modal-input" value="main"></div>
+          <div style="flex:1;"><label style="display:block;font-size:11px;color:#888;margin-bottom:3px;">ファイルパス</label>
+            <input id="deploy-filepath" class="modal-input" value="index.html"></div>
+        </div>
+        <div><label style="display:block;font-size:11px;color:#888;margin-bottom:3px;">README.md</label>
+          <textarea id="deploy-readme-content" class="modal-input" rows="5" style="resize:vertical;font-family:monospace;font-size:11px;" placeholder="READMEの内容..."></textarea></div>
+        <label style="display:flex;align-items:center;gap:8px;font-size:12px;color:#fff;cursor:pointer;background:#2a2a2a;padding:9px 11px;border:1px solid #444;border-radius:8px;">
+          <input type="checkbox" id="deploy-gh-pages" checked style="accent-color:var(--primary);width:15px;height:15px;margin:0;">GitHub Pagesを有効にして公開する</label>
+        <div id="deploy-execute-status" class="modal-status" style="text-align:left;color:#ccc;"></div>
+        <button class="modal-btn" id="deploy-exec-btn" onclick="executeDeploy()" style="background:var(--accent);">🚀 デプロイ実行</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ──────────── AI Settings Modal (Bottom Sheet) ──────────── -->
+<div id="ai-settings-modal" class="bottom-sheet-overlay" onclick="if(event.target===this)closeChatSettingsModal()">
+  <div class="bottom-sheet">
+    <div class="sheet-header">
+      <h3>🛠️ AI 設定</h3>
+      <button class="sheet-close" onclick="closeChatSettingsModal()">✕</button>
+    </div>
+    <div class="sheet-field">
+      <label>役割</label>
+      <select id="modal-role-select" onchange="onModalRoleChange()"></select>
+    </div>
+    <div class="sheet-field">
+      <label>プロバイダー</label>
+      <select id="modal-provider-select" onchange="onModalProviderChange()">
+        <option value="gemini">Gemini</option>
+        <option value="claude">Claude</option>
+        <option value="gpt">GPT</option>
+        <option value="grok">Grok (xAI)</option>
+      </select>
+    </div>
+    <div class="sheet-field">
+      <label>モデル</label>
+      <select id="modal-model-select" onchange="onModalModelChange()"></select>
+    </div>
+    <div class="sheet-field" style="margin-top:24px; border-top: 1px solid #333; padding-top: 14px;">
+      <label>チャット履歴管理</label>
+      <button class="modal-btn" style="background:transparent; border: 1px solid var(--danger); color: var(--danger); margin-top: 5px;" onclick="confirmReset();closeChatSettingsModal()">✨ 新規プロジェクトを開始 / チャット履歴をリセット</button>
+    </div>
+  </div>
+</div>
+
+<!-- ──────────── Background Notification ──────────── -->
+<div id="bg-notify" class="bg-notify">
+  <div class="spinner" style="width:13px;height:13px;border-width:2px;margin:0"></div>
+  <span>バックグラウンドで生成中...</span>
+</div>
+
+<div id="toast"></div>
+
+
+<!-- ──────────── Libraries ──────────── -->
+<script src="https://cdn.jsdelivr.net/npm/dexie@3.2.4/dist/dexie.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/marked@9.1.2/marked.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/dompurify@3.0.6/dist/purify.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/xml/xml.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/javascript/javascript.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/css/css.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/htmlmixed/htmlmixed.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/search/searchcursor.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/search/search.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/dialog/dialog.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/selection/active-line.min.js"></script>
+
+<script>
+/* =====================================================================
+   AI Web Studio Pro 2026 – Integrated
+   ===================================================================== */
+
+// ── Constants ──
+const PROXY_WORKER_URL = 'https://green-credit-a6fb.ikymbiz.workers.dev';
+const DEFAULT_MODELS = {
+  gemini: ['gemini-2.5-flash','gemini-2.5-pro','gemini-3-flash-preview','gemini-2.0-flash'],
+  claude: ['claude-opus-4-5','claude-sonnet-4-5','claude-haiku-4-5-20251001','claude-3-5-sonnet-20241022'],
+  gpt:    ['gpt-4o','gpt-4o-mini','gpt-4-turbo','gpt-3.5-turbo'],
+  grok:   ['grok-3','grok-2','grok-beta']
+};
+const PRESET_ROLES = [
+  { id:'role_1', name:'アシスタント',     prompt:'あなたは優秀なAIアシスタントです。ユーザーの質問に正確かつ簡潔に答えてください。', isPreset:true },
+  { id:'role_2', name:'プログラマー',     prompt:'あなたは熟練のソフトウェアエンジニアです。ベストプラクティスに基づいたクリーンで効率的なコードを提供します。', isPreset:true },
+  { id:'role_3', name:'マーケター',       prompt:'あなたは優秀なデジタルマーケターです。魅力的なコピーや革新的な戦略を提案します。', isPreset:true },
+  { id:'role_4', name:'ストーリーテラー', prompt:'あなたは創造的なストーリーテラーです。読者を引き込む感情豊かな物語を紡ぎます。', isPreset:true },
+  { id:'role_5', name:'コンサルタント',   prompt:'あなたは戦略コンサルタントです。論理的で実践的なビジネスアドバイスを提供します。', isPreset:true }
+];
+const PAGE_LIST = ['chat','rag','settings'];
+
+// ── Preset Pipelines ──
+const PRESET_PIPELINES = [
+  {
+    id:'pipeline_preset_1', name:'要件 → コード生成', isDefault:true, isPreset:true,
+    steps:[
+      { id:'ps1_s1', order:0, name:'要件定義', enabled:true, requireApproval:true,
+        provider:'gemini', model:'gemini-2.5-flash',
+        systemPrompt:'あなたはWebアプリケーションの要件定義の専門家です。ユーザーの要望を明確な要件として整理し、機能一覧・UI概要・技術要件を箇条書きで出力してください。',
+        userPromptTpl:'以下の要望をもとに、Webアプリの要件を整理してください:\n\n{{user_input}}',
+        outputRole:'requirements' },
+      { id:'ps1_s2', order:1, name:'コード生成', enabled:true, requireApproval:false,
+        provider:'gemini', model:'gemini-2.5-pro',
+        systemPrompt:'Expert Full-stack Web Developerとして、完全なHTML/CSS/JSコードを1つのファイルで出力してください。Markdownのコードブロック不要。<!DOCTYPE html>から開始。外部ライブラリはCDN使用。',
+        userPromptTpl:'以下の要件に基づいて完全なHTMLコードを生成してください:\n\n要件:\n{{output:requirements}}',
+        outputRole:'code' }
+    ]
+  },
+  {
+    id:'pipeline_preset_2', name:'要件 → コード → レビュー → 修正', isDefault:false, isPreset:true,
+    steps:[
+      { id:'ps2_s1', order:0, name:'要件定義', enabled:true, requireApproval:true,
+        provider:'gemini', model:'gemini-2.5-flash',
+        systemPrompt:'あなたはWebアプリケーションの要件定義の専門家です。ユーザーの要望を明確な要件として整理し、機能一覧・UI概要・技術要件を箇条書きで出力してください。',
+        userPromptTpl:'以下の要望をもとに、Webアプリの要件を整理してください:\n\n{{user_input}}',
+        outputRole:'requirements' },
+      { id:'ps2_s2', order:1, name:'コード生成', enabled:true, requireApproval:false,
+        provider:'gemini', model:'gemini-2.5-pro',
+        systemPrompt:'Expert Full-stack Web Developerとして、完全なHTML/CSS/JSコードを1つのファイルで出力してください。Markdownのコードブロック不要。<!DOCTYPE html>から開始。外部ライブラリはCDN使用。',
+        userPromptTpl:'以下の要件に基づいて完全なHTMLコードを生成してください:\n\n要件:\n{{output:requirements}}',
+        outputRole:'code' },
+      { id:'ps2_s3', order:2, name:'品質評価', enabled:true, requireApproval:true,
+        provider:'gemini', model:'gemini-2.5-flash',
+        systemPrompt:'あなたはWebアプリのコードレビュー専門家です。要件との整合性、実装漏れ、バグ、改善点を具体的に指摘してください。',
+        userPromptTpl:'要件:\n{{output:requirements}}\n\n生成されたコード:\n{{output:code}}\n\n上記コードについて、要件との差異・実装漏れ・改善点を詳細にレビューしてください。',
+        outputRole:'review' },
+      { id:'ps2_s4', order:3, name:'コード修正', enabled:true, requireApproval:false,
+        provider:'gemini', model:'gemini-2.5-pro',
+        systemPrompt:'Expert Full-stack Web Developerとして、レビュー結果を踏まえてコードを修正してください。完全なHTML/CSS/JSを1ファイルで出力。Markdownのコードブロック不要。',
+        userPromptTpl:'レビュー結果:\n{{output:review}}\n\n元のコード:\n{{output:code}}\n\n上記レビューを踏まえて、すべての指摘事項を修正した完全なコードを出力してください。',
+        outputRole:'final_code' }
+    ]
+  }
+];
+
+// ── Dexie DB (v2: rag tables) ──
+const appDB = new Dexie('AIWebStudioDB');
+appDB.version(1).stores({ settings:'key', roles:'id' });
+appDB.version(2).stores({ settings:'key', roles:'id', rag_docs:'id,createdAt', rag_chunks:'id,docId' });
+appDB.version(3).stores({ settings:'key', roles:'id', rag_docs:'id,createdAt', rag_chunks:'id,docId', pipelines:'id' });
+
+// ── State ──
+let chatProvider = 'gemini', chatModel = 'gemini-2.5-flash';
+let codeProvider = 'gemini', codeModel = 'gemini-2.5-pro';
+let currentRoleId = 'role_1';
+let conversationMessages = [];   // [{role:'user'|'ai', content:'', attachments:[]}]
+let attachedFiles = [];          // [{id, filename, mimeType, base64Data, textContent, thumbnail}]
+let aiWorker = null, codeEditor = null, swRegistration = null;
+let isStreaming = false;
+let isPipelineRunning = false;
+let pipelineAbortFlag = false;
+let ghImportRepos = [], deployRepos = [], selectedDeployRepo = null;
+let editingRoleId = null;
+
+// ── Utilities ──
+const generateUUID = () => (crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).slice(2,15));
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'), 2800);
+}
+function autoGrow(el) { el.style.height='5px'; el.style.height=el.scrollHeight+'px'; }
+
+// ── DB helpers (Dexie) ──
+async function getSetting(key, def='') {
+  const r = await appDB.settings.get(key); return r ? r.value : def;
+}
+async function putSetting(key, value) { await appDB.settings.put({key, value}); }
+async function getApiKey(provider) { return getSetting(`apikey_${provider}`,''); }
+async function getCustomModels(provider) { return getSetting(`custom_models_${provider}`, []); }
+async function saveCustomModels(provider, arr) { await putSetting(`custom_models_${provider}`, arr); }
+
+// ── Legacy IndexedDB helpers (used by SW / background generation) ──
+function openBgDB() {
+  return new Promise((res,rej)=>{
+    const q=indexedDB.open('WebStudioBG',1);
+    q.onupgradeneeded=()=>q.result.createObjectStore('tasks');
+    q.onsuccess=()=>res(q.result); q.onerror=()=>rej(q.error);
+  });
+}
+async function saveToBgDB(key,val){
+  const db=await openBgDB(); return new Promise((res,rej)=>{
+    const tx=db.transaction('tasks','readwrite');
+    tx.objectStore('tasks').put(val,key); tx.oncomplete=()=>res(); tx.onerror=()=>rej(tx.error);
+  });
+}
+async function getFromBgDB(key){
+  const db=await openBgDB(); return new Promise((res,rej)=>{
+    const tx=db.transaction('tasks','readonly');
+    const q=tx.objectStore('tasks').get(key); q.onsuccess=()=>res(q.result); q.onerror=()=>rej(q.error);
+  });
+}
+async function delFromBgDB(key){
+  const db=await openBgDB(); return new Promise(res=>{
+    const tx=db.transaction('tasks','readwrite');
+    tx.objectStore('tasks').delete(key); tx.oncomplete=()=>res();
+  });
+}
+
+// ── Service Worker (Blob URL) ──
+const SW_CODE = `
+  self.addEventListener('message', async (e) => {
+    if (e.data.type !== 'generate') return;
+    try {
+      const res = await fetch(e.data.url, {method:'POST',headers:{'Content-Type':'application/json'},body:e.data.body});
+      const data = await res.json();
+      if (data.error) throw new Error(data.error.message);
+      let result = data.candidates ? data.candidates[0].content.parts[0].text : (data.response||data.text||'');
+      result = result.replace(/^\`\`\`html\\s*/i,'').replace(/^\`\`\`\\s*/,'').replace(/\`\`\`$/g,'').trim();
+      const dbReq=indexedDB.open('WebStudioBG',1);
+      dbReq.onupgradeneeded=()=>dbReq.result.createObjectStore('tasks');
+      dbReq.onsuccess=()=>{
+        const tx=dbReq.result.transaction('tasks','readwrite');
+        tx.objectStore('tasks').put({code:result,done:true,ts:Date.now()},'bgResult');
+        tx.oncomplete=()=>self.clients.matchAll().then(cs=>cs.forEach(c=>c.postMessage({type:'generateDone',code:result})));
+      };
+    } catch(err) {
+      const dbReq=indexedDB.open('WebStudioBG',1);
+      dbReq.onupgradeneeded=()=>dbReq.result.createObjectStore('tasks');
+      dbReq.onsuccess=()=>{
+        const tx=dbReq.result.transaction('tasks','readwrite');
+        tx.objectStore('tasks').put({error:err.message,done:true,ts:Date.now()},'bgResult');
+        tx.oncomplete=()=>self.clients.matchAll().then(cs=>cs.forEach(c=>c.postMessage({type:'generateError',error:err.message})));
+      };
+    }
+  });
+`;
+async function registerSW(){
+  if(!('serviceWorker' in navigator)) return;
+  try{
+    const blob=new Blob([SW_CODE],{type:'application/javascript'});
+    swRegistration=await navigator.serviceWorker.register(URL.createObjectURL(blob));
+    navigator.serviceWorker.addEventListener('message',e=>{
+      const notify=document.getElementById('bg-notify');
+      if(e.data.type==='generateDone'){
+        if(codeEditor) codeEditor.setValue(e.data.code);
+        updatePreview(); notify.classList.remove('show');
+        appendSystemMsg('✨ バックグラウンド構築完了。PREVIEWを確認してください。');
+        delFromBgDB('bgResult');
+      } else if(e.data.type==='generateError'){
+        notify.classList.remove('show');
+        appendSystemMsg(`<span style="color:var(--danger)">BG エラー: ${e.data.error}</span>`);
+        delFromBgDB('bgResult');
+      }
+    });
+  } catch(e){ console.log('SW skip:',e); }
+}
+
+// ── Web Worker (AI Streaming) ──
+const WORKER_CODE = `
+self.onmessage = async function(e) {
+  const { provider, model, apiKey, systemPrompt, messages, proxyUrl } = e.data;
+  try {
+    // Gemini proxy fallback
+    if (provider === 'gemini' && !apiKey && proxyUrl) {
+      const parts = messages.map(m => (m.role==='user'?'ユーザー':'アシスタント') + ': ' + (m.content||'')).join('\\n');
+      const combined = systemPrompt + '\\n\\n会話履歴:\\n' + parts;
+      const res = await fetch(proxyUrl, {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({prompt:combined})});
+      const data = await res.json();
+      const txt = data.candidates ? data.candidates[0].content.parts[0].text : (data.response||data.text||'');
+      if (txt) self.postMessage({type:'chunk',text:txt});
+      self.postMessage({type:'done'}); return;
+    }
+    if (!apiKey) throw new Error('APIキーが設定されていません。設定画面から設定してください。');
+
+    const cleanB64 = (d) => { if(!d) return ''; const i=d.indexOf(','); return i!==-1?d.substring(i+1):d; };
+
+    if (provider === 'gemini') {
+      const url = 'https://generativelanguage.googleapis.com/v1beta/models/'+model+':streamGenerateContent?alt=sse&key='+apiKey;
+      const geminiMsgs = messages.map(m => {
+        let parts=[]; let txt=m.content||'';
+        if(m.attachments) m.attachments.forEach(a=>{ if(a.mimeType&&a.mimeType.startsWith('text/')) txt+='\\n\\n---'+a.filename+'---\\n'+a.textContent; });
+        if(txt) parts.push({text:txt});
+        if(m.attachments) m.attachments.forEach(a=>{ if(a.mimeType&&a.mimeType.startsWith('image/')&&a.base64Data) parts.push({inline_data:{mime_type:a.mimeType,data:cleanB64(a.base64Data)}}); });
+        if(!parts.length) parts.push({text:''});
+        return {role:m.role==='user'?'user':'model', parts};
+      });
+      const body={system_instruction:{parts:[{text:systemPrompt}]},contents:geminiMsgs};
+      const res=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+      if(!res.ok){const er=await res.json().catch(()=>({}));throw new Error(er.error?.message||'HTTP '+res.status);}
+      const reader=res.body.getReader(); const dec=new TextDecoder(); let buf='';
+      while(true){
+        const {done,value}=await reader.read(); if(done) break;
+        buf+=dec.decode(value,{stream:true}); const lines=buf.split('\\n'); buf=lines.pop();
+        for(const ln of lines){ if(ln.startsWith('data: ')){ try{ const d=JSON.parse(ln.slice(6)); const c=d.candidates?.[0]?.content?.parts?.[0]?.text; if(c) self.postMessage({type:'chunk',text:c}); }catch(x){} } }
+      }
+
+    } else if (provider === 'claude') {
+      const url='https://api.anthropic.com/v1/messages';
+      const hdrs={'Content-Type':'application/json','x-api-key':apiKey,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'};
+      const claudeMsgs = messages.map(m=>{
+        let ca=[]; let txt=m.content||'';
+        if(m.attachments) m.attachments.forEach(a=>{ if(a.mimeType&&a.mimeType.startsWith('image/')&&a.base64Data) ca.push({type:'image',source:{type:'base64',media_type:a.mimeType,data:cleanB64(a.base64Data)}}); });
+        if(txt) ca.push({type:'text',text:txt});
+        const fin=(m.role==='ai'||m.role==='assistant')?ca.filter(c=>c.type==='text').map(c=>c.text).join('\\n')||'': (ca.length?ca:txt);
+        return {role:m.role==='ai'?'assistant':m.role,content:fin};
+      });
+      const body={model,max_tokens:4096,system:systemPrompt,messages:claudeMsgs,stream:true};
+      const res=await fetch(url,{method:'POST',headers:hdrs,body:JSON.stringify(body)});
+      if(!res.ok){const er=await res.json().catch(()=>({}));throw new Error(er.error?.message||'HTTP '+res.status);}
+      const reader=res.body.getReader(); const dec=new TextDecoder(); let buf='';
+      while(true){
+        const {done,value}=await reader.read(); if(done) break;
+        buf+=dec.decode(value,{stream:true}); const lines=buf.split('\\n'); buf=lines.pop();
+        for(const ln of lines){ if(ln.startsWith('data: ')){ const s=ln.slice(6).trim(); if(s==='[DONE]') continue; try{ const d=JSON.parse(s); if(d.type==='content_block_delta'&&d.delta?.text) self.postMessage({type:'chunk',text:d.delta.text}); }catch(x){} } }
+      }
+
+    } else if (provider === 'gpt' || provider === 'grok') {
+      const url=provider==='gpt'?'https://api.openai.com/v1/chat/completions':'https://api.x.ai/v1/chat/completions';
+      const hdrs={'Content-Type':'application/json','Authorization':'Bearer '+apiKey};
+      const fmtMsgs=messages.map(m=>{
+        let txt=m.content||''; let ca=[];
+        if(m.attachments) m.attachments.forEach(a=>{ if(a.mimeType&&a.mimeType.startsWith('text/')) txt+='\\n\\n---'+a.filename+'---\\n'+a.textContent; });
+        if(txt) ca.push({type:'text',text:txt});
+        if(m.attachments) m.attachments.forEach(a=>{ if(a.mimeType&&a.mimeType.startsWith('image/')&&a.base64Data) ca.push({type:'image_url',image_url:{url:a.base64Data}}); });
+        if(!ca.length) ca=[{type:'text',text:''}];
+        const fin=(m.role==='ai'||m.role==='assistant')?txt:ca;
+        return {role:m.role==='ai'?'assistant':m.role,content:fin};
+      });
+      const body={model,messages:[{role:'system',content:systemPrompt},...fmtMsgs],stream:true};
+      const res=await fetch(url,{method:'POST',headers:hdrs,body:JSON.stringify(body)});
+      if(!res.ok){const er=await res.json().catch(()=>({}));throw new Error(er.error?.message||'HTTP '+res.status);}
+      const reader=res.body.getReader(); const dec=new TextDecoder(); let buf='';
+      while(true){
+        const {done,value}=await reader.read(); if(done) break;
+        buf+=dec.decode(value,{stream:true}); const lines=buf.split('\\n'); buf=lines.pop();
+        for(const ln of lines){ if(ln.startsWith('data: ')){ const s=ln.slice(6).trim(); if(s==='[DONE]') continue; try{ const d=JSON.parse(s); const c=d.choices?.[0]?.delta?.content; if(c) self.postMessage({type:'chunk',text:c}); }catch(x){} } }
+      }
+    }
+    self.postMessage({type:'done'});
+  } catch(err){ self.postMessage({type:'error',error:err.message}); }
+};
+`;
+function setupWorker(){
+  const blob=new Blob([WORKER_CODE],{type:'application/javascript'});
+  aiWorker=new Worker(URL.createObjectURL(blob));
+}
+
+// ── CodeMirror ──
+function initCodeMirror(){
+  if(!document.getElementById('code-editor')) return;
+  codeEditor=CodeMirror.fromTextArea(document.getElementById('code-editor'),{
+    mode:'htmlmixed', theme:'dracula', lineNumbers:true,
+    styleActiveLine:true, lineWrapping:false, tabSize:2,
+    indentWithTabs:false, autofocus:false,
+    extraKeys:{
+      'Ctrl-F':(cm)=>{ CodeMirror.commands.find(cm); },
+      'Cmd-F': (cm)=>{ CodeMirror.commands.find(cm); },
+      'Ctrl-H':'replace', 'Cmd-H':'replace'
+    }
+  });
+  codeEditor.on('change',()=>{});
+}
+
+// ── Init ──
+async function init(){
+  // Init preset roles (only add if not exists, so user edits are kept)
+  for (const presetRole of PRESET_ROLES) {
+    const existing = await appDB.roles.get(presetRole.id);
+    if (!existing) {
+      await appDB.roles.put(presetRole);
+    }
+  }
+
+  // Load state from DB
+  chatProvider = await getSetting('chatProvider','gemini');
+  chatModel    = await getSetting('chatModel','gemini-2.5-flash');
+  codeProvider = await getSetting('codeProvider','gemini');
+  codeModel    = await getSetting('codeModel','gemini-2.5-pro');
+  currentRoleId= await getSetting('currentRoleId','role_1');
+
+  // Restore API keys UI
+  for(const p of ['gemini','claude','gpt','grok']){
+    const v=await getSetting(`apikey_${p}`,'');
+    document.getElementById(`api-key-${p}`).value=v;
+  }
+  const ghTok=await getSetting('gh_token','');
+  if(ghTok){ document.getElementById('setting-gh-token').value=ghTok; document.getElementById('deploy-token-input').value=ghTok; }
+  document.getElementById('user-profile').value=await getSetting('userProfile','');
+  document.getElementById('implementation-policy-prompt').value=await getSetting('implementationPolicyPrompt','');
+
+  // Settings page selects
+  document.getElementById('chat-provider-setting').value=chatProvider;
+  await populateModelSelect('chat-model-setting',chatProvider,chatModel);
+  document.getElementById('code-provider-setting').value=codeProvider;
+  await populateModelSelect('code-model-setting',codeProvider,codeModel);
+  
+  // Load settings tabs content
+  await loadModelList();
+  await loadRoleList();
+
+  // Init preset pipelines
+  const pCount = await appDB.pipelines.count();
+  if(!pCount){ for(const p of PRESET_PIPELINES) await appDB.pipelines.put(p); }
+  await loadPipelineList();
+  await updatePipelineRunBtn();
+
+  updateProviderBadge();
+  setupWorker();
+  await registerSW();
+
+  // BG result check
+  try{
+    const bg=await getFromBgDB('bgResult');
+    if(bg&&bg.done){
+      if(bg.code){ codeEditor&&codeEditor.setValue(bg.code); updatePreview(); appendSystemMsg('✨ バックグラウンド構築完了（復帰）。PREVIEWを確認してください。'); }
+      else if(bg.error) appendSystemMsg(`<span style="color:var(--danger)">前回のBG生成エラー: ${bg.error}</span>`);
+      await delFromBgDB('bgResult');
+    }
+  }catch(e){}
+}
+
+// ── Navigation ──
+function showPage(id,btn){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+  document.getElementById('p-'+id).classList.add('active');
+  if(btn) btn.classList.add('active');
+  if(id==='preview') updatePreview();
+  if(id==='editor'&&codeEditor) codeEditor.refresh();
+  if(id==='rag') loadRagDocList();
+  if(id==='settings'){
+    loadModelList();
+    loadRoleList();
+    if(!document.querySelector('.settings-tab-btn.active')) {
+      const firstTabBtn = document.querySelector('.settings-tab-btn');
+      if(firstTabBtn) switchSettingsTab(firstTabBtn.dataset.tabId || 'keys', firstTabBtn);
+    }
+  }
+}
+
+function switchSettingsTab(tabId, btn) {
+  document.querySelectorAll('.settings-tab-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.settings-tab-pane').forEach(p => p.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('settings-pane-' + tabId).classList.add('active');
+  if(tabId === 'pipelines') loadPipelineList();
+}
+
+// ── Provider Badge ──
+function updateProviderBadge(){
+  const badge=document.getElementById('chat-provider-badge');
+  badge.textContent=chatProvider.charAt(0).toUpperCase()+chatProvider.slice(1);
+  badge.className='provider-badge '+chatProvider;
+  document.getElementById('chat-model-badge').textContent=chatModel;
+}
+
+// ── Attachment (multi-file) ──
+function toggleAttachmentMenu(){
+  document.getElementById('attach-menu').classList.toggle('show');
+}
+function triggerFile(type){
+  document.getElementById('file-'+type).click();
+  document.getElementById('attach-menu').classList.remove('show');
+}
+
+async function handleAttachment(input){
+  const files=Array.from(input.files); if(!files.length) return;
+  for(const file of files){
+    const id=generateUUID();
+    if(file.type.startsWith('image/')){
+      const dataUrl=await new Promise(r=>{ const fr=new FileReader(); fr.onload=()=>r(fr.result); fr.readAsDataURL(file); });
+      const thumb=await makeThumbnail(dataUrl,file.type);
+      attachedFiles.push({id,filename:file.name,mimeType:file.type,base64Data:dataUrl,textContent:null,thumbnail:thumb});
+    } else {
+      const text=await new Promise(r=>{ const fr=new FileReader(); fr.onload=()=>r(fr.result); fr.readAsText(file); });
+      attachedFiles.push({id,filename:file.name,mimeType:file.type,base64Data:null,textContent:text,thumbnail:null});
+    }
+  }
+  input.value='';
+  renderFilePreviews();
+}
+
+function makeThumbnail(dataUrl,mimeType){
+  return new Promise(r=>{
+    if(!mimeType.startsWith('image/')){ r(null); return; }
+    const img=new Image();
+    img.onload=()=>{
+      const c=document.createElement('canvas');
+      const max=72; let w=img.width,h=img.height;
+      if(w>h){ if(w>max){h=h*max/w;w=max;} } else { if(h>max){w=w*max/h;h=max;} }
+      c.width=w; c.height=h;
+      c.getContext('2d').drawImage(img,0,0,w,h);
+      r(c.toDataURL(mimeType,0.75));
+    };
+    img.onerror=()=>r(null);
+    img.src=dataUrl;
+  });
+}
+
+function renderFilePreviews(){
+  const strip=document.getElementById('file-preview-strip');
+  strip.innerHTML='';
+  attachedFiles.forEach(f=>{
+    const chip=document.createElement('div'); chip.className='file-chip';
+    if(f.thumbnail) chip.innerHTML=`<img src="${f.thumbnail}" alt="">`;
+    else chip.innerHTML=`<span class="chip-icon">${f.mimeType.startsWith('text/')?'📄':'📎'}</span>`;
+    chip.innerHTML+=`<span class="chip-name" title="${f.filename}">${f.filename}</span>`;
+    const del=document.createElement('button'); del.className='chip-del'; del.textContent='×';
+    del.onclick=()=>{ attachedFiles=attachedFiles.filter(x=>x.id!==f.id); renderFilePreviews(); };
+    chip.appendChild(del);
+    strip.appendChild(chip);
+  });
+}
+
+function clearAllAttachments(){
+  attachedFiles=[];
+  renderFilePreviews();
+}
+
+document.addEventListener('click',e=>{
+  const menu=document.getElementById('attach-menu');
+  const lbl=document.getElementById('attach-btn');
+  if(menu&&menu.classList.contains('show')&&!menu.contains(e.target)&&!lbl.contains(e.target)) menu.classList.remove('show');
+});
+
+// ── AI Settings Modal ──
+async function openChatSettingsModal(){
+  // Load roles
+  const roleSelect=document.getElementById('modal-role-select');
+  roleSelect.innerHTML='';
+  const roles=await appDB.roles.toArray();
+  roles.forEach(r=>{ const o=document.createElement('option'); o.value=r.id; o.textContent=r.name; roleSelect.appendChild(o); });
+  roleSelect.value=currentRoleId;
+
+  // Provider / Model
+  document.getElementById('modal-provider-select').value=chatProvider;
+  await populateModalModelSelect(chatProvider,chatModel);
+
+  document.getElementById('ai-settings-modal').classList.add('show');
+}
+function closeChatSettingsModal(){ document.getElementById('ai-settings-modal').classList.remove('show'); }
+
+async function populateModalModelSelect(provider,current){
+  const sel=document.getElementById('modal-model-select');
+  sel.innerHTML='';
+  const custom=await getCustomModels(provider);
+  [...DEFAULT_MODELS[provider],...custom].forEach(m=>{
+    const o=document.createElement('option'); o.value=m; o.textContent=m;
+    if(m===current) o.selected=true;
+    sel.appendChild(o);
+  });
+}
+async function onModalRoleChange(){ currentRoleId=document.getElementById('modal-role-select').value; await putSetting('currentRoleId',currentRoleId); }
+async function onModalProviderChange(){
+  chatProvider=document.getElementById('modal-provider-select').value;
+  await populateModalModelSelect(chatProvider,'');
+  chatModel=document.getElementById('modal-model-select').value;
+  await putSetting('chatProvider',chatProvider); await putSetting('chatModel',chatModel);
+  updateProviderBadge();
+}
+async function onModalModelChange(){
+  chatModel=document.getElementById('modal-model-select').value;
+  await putSetting('chatModel',chatModel);
+  updateProviderBadge();
+}
+
+// ── Chat: askAI ──
+async function askAI(){
+  if(isStreaming) return;
+  const input=document.getElementById('user-prompt');
+  const promptText=input.value.trim();
+  if(!promptText&&attachedFiles.length===0) return alert('入力またはファイルが必要です');
+
+  const key=await getApiKey(chatProvider);
+  if(!key&&chatProvider!=='gemini'){ alert(`${chatProvider}のAPIキーが設定されていません。`); return; }
+  if(!key&&chatProvider==='gemini'&&!PROXY_WORKER_URL){ alert('GeminiのAPIキーが設定されていません。'); return; }
+
+  const log=document.getElementById('chat-log');
+  document.querySelectorAll('.msg-actions .generate-btn').forEach(el=>el.closest('.msg-actions').remove());
+
+  // User message UI
+  const userEl=document.createElement('div'); userEl.className='msg user';
+  let userText=promptText;
+  if(attachedFiles.length) userText+=(promptText?'\n':'')+attachedFiles.map(f=>'[添付: '+f.filename+']').join(' ');
+  userEl.textContent=userText; log.appendChild(userEl);
+
+  // AI loading bubble
+  const aiEl=document.createElement('div'); aiEl.className='msg ai';
+  const contentEl=document.createElement('div'); contentEl.className='msg-content';
+  contentEl.innerHTML='<div style="display:flex;align-items:center;"><div class="spinner"></div><span>考案中...</span></div>';
+  aiEl.appendChild(contentEl); log.appendChild(aiEl);
+  input.value=''; input.style.height='44px'; log.scrollTop=log.scrollHeight;
+
+  // Build user message object with attachments snapshot
+  const currentAttachments=attachedFiles.map(f=>({
+    id:f.id, filename:f.filename, mimeType:f.mimeType,
+    base64Data:f.base64Data, textContent:f.textContent, thumbnail:f.thumbnail
+  }));
+  const userMsgObj={role:'user',content:promptText,attachments:currentAttachments};
+  conversationMessages.push(userMsgObj);
+  clearAllAttachments();
+
+  // System prompt
+  const roleRec=await appDB.roles.get(currentRoleId);
+  const rolePrompt=roleRec?roleRec.prompt:PRESET_ROLES[0].prompt;
+  const prof=await getSetting('userProfile','');
+  const implementationPolicy = await getSetting('implementationPolicyPrompt', '');
+  const curCode=codeEditor?codeEditor.getValue():'';
+  const codeCtx=curCode?'\n\n【現在のコード】\n```html\n'+curCode.slice(0,1500)+'\n```\n※上記コードを踏まえて、修正案や設計の提案を行ってください。':'';
+  
+  const systemPrompt=`${rolePrompt}
+あなたはプロのWeb開発ディレクターです。ユーザーのアイディアを具体化し、実装に向けた設計図を作成します。
+プロファイル: ${prof}${prof ? '\n' : ''}${implementationPolicy ? '\n実装ポリシー/ガイドライン:\n' + implementationPolicy : ''}
+ガイドライン: 1.アプリ名・ターゲット・機能をヒアリング。 2.簡潔に箇条書きで返答。 3.コードは書かず仕様合意に徹する。 4.仕様が固まったら「素晴らしいプランです。⚡️コードを作成 ボタンから実装を開始しましょう」と促す。${codeCtx}`;
+
+  isStreaming=true;
+  document.getElementById('send-btn').disabled=true;
+  let aiText='';
+  contentEl.innerHTML='';
+
+  aiWorker.onmessage=(ev)=>{
+    const {type,text:chunk,error}=ev.data;
+    if(type==='chunk'){
+      aiText+=chunk;
+      contentEl.innerText=aiText;
+      log.scrollTop=log.scrollHeight;
+    } else if(type==='done'){
+      finishAskAI(aiEl,contentEl,aiText);
+    } else if(type==='error'){
+      contentEl.innerHTML=`<span style="color:var(--danger)">エラー: ${error}</span>`;
+      cleanupStreaming();
+    }
+  };
+
+  aiWorker.postMessage({
+    provider:chatProvider, model:chatModel,
+    apiKey:key||undefined, systemPrompt,
+    messages:conversationMessages.slice(-20),
+    proxyUrl:(!key&&chatProvider==='gemini')?PROXY_WORKER_URL:undefined
+  });
+}
+
+function finishAskAI(aiEl,contentEl,aiText){
+  // Render Markdown
+  contentEl.innerHTML=DOMPurify.sanitize(marked.parse(aiText));
+  aiEl.dataset.rawText=aiText;
+
+  // Actions bar
+  const actDiv=document.createElement('div'); actDiv.className='msg-actions';
+
+  // Build button
+  const genBtn=document.createElement('button'); genBtn.className='generate-btn';
+  genBtn.innerHTML='⚡️ コードを作成 (BUILD)'; genBtn.onclick=generateCode;
+  actDiv.appendChild(genBtn);
+
+  // Copy button
+  const cpBtn=document.createElement('button'); cpBtn.className='msg-copy-btn';
+  cpBtn.textContent='📋 コピー'; cpBtn.onclick=()=>copyMessage(cpBtn);
+  actDiv.appendChild(cpBtn);
+
+  aiEl.appendChild(actDiv);
+  conversationMessages.push({role:'ai',content:aiText});
+  document.getElementById('chat-log').scrollTop=document.getElementById('chat-log').scrollHeight;
+  cleanupStreaming();
+}
+
+function cleanupStreaming(){ isStreaming=false; document.getElementById('send-btn').disabled=false; }
+
+// ── Message Copy ──
+function copyMessage(btn){
+  const msgEl=btn.closest('.msg.ai');
+  const rawText=msgEl.dataset.rawText||msgEl.querySelector('.msg-content')?.innerText||'';
+  const doCopy=()=>{ btn.textContent='✅ コピー完了'; setTimeout(()=>btn.textContent='📋 コピー',2000); };
+  if(navigator.clipboard){ navigator.clipboard.writeText(rawText).then(doCopy).catch(()=>fallbackCopy(rawText,doCopy)); }
+  else fallbackCopy(rawText,doCopy);
+}
+function fallbackCopy(text,cb){
+  const ta=document.createElement('textarea'); ta.value=text; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta); cb();
+}
+
+// ── System / info messages (no copy button) ──
+function appendSystemMsg(html){
+  const log=document.getElementById('chat-log');
+  const el=document.createElement('div'); el.className='msg ai';
+  const c=document.createElement('div'); c.className='msg-content'; c.innerHTML=html;
+  el.appendChild(c); log.appendChild(el); log.scrollTop=log.scrollHeight;
+}
+
+// ── Code Generation ──
+async function generateCode(){
+  document.querySelectorAll('.msg-actions .generate-btn').forEach(el=>el.closest('.msg-actions').remove());
+  const log=document.getElementById('chat-log');
+  const aiEl=document.createElement('div'); aiEl.className='msg ai';
+  const contentEl=document.createElement('div'); contentEl.className='msg-content';
+  contentEl.innerHTML='<div style="display:flex;align-items:center;"><div class="spinner"></div><span>構築中...（タブを閉じてもOK）</span></div>';
+  aiEl.appendChild(contentEl); log.appendChild(aiEl); log.scrollTop=log.scrollHeight;
+
+  const key=await getApiKey(codeProvider);
+  const prof=await getSetting('userProfile','');
+  const implementationPolicy = await getSetting('implementationPolicyPrompt', '');
+  const curCode=codeEditor?codeEditor.getValue():'';
+  const convText=conversationMessages.map(m=>(m.role==='user'?'ユーザー':'アシスタント')+': '+(m.content||'')).join('\n');
+  const codeRule=curCode
+    ?`【重要】以下の既存コードが存在します。構造・変数名・スタイルを最大限維持し、合意した差分のみを変更してください。\n既存コード:\n${curCode}`
+    :'既存コードはありません。新規に完全なコードを作成してください。';
+  const sysPrompt=`Expert Full-stack Web Developerとして、完全なHTML/CSS/JSコードを1つのファイルで出力してください。
+プロファイル: ${prof}${prof ? '\n' : ''}${implementationPolicy ? '\n実装ポリシー/ガイドライン:\n' + implementationPolicy : ''}
+ルール: Markdownのコードブロック不要。<!DOCTYPE html>から開始。外部ライブラリはCDN使用。
+${codeRule}`;
+  const userMsg='会話履歴:\n'+convText+'\n\n上記の要件に基づいてコードを生成してください。';
+
+  try{
+    let result='';
+
+    if(codeProvider==='gemini'){
+      const geminiKey=key||'';
+      const url=geminiKey?`https://generativelanguage.googleapis.com/v1beta/models/${codeModel}:generateContent?key=${geminiKey}`:PROXY_WORKER_URL;
+      const body=geminiKey?JSON.stringify({contents:[{parts:[{text:sysPrompt+'\n\n'+userMsg}]}]}):JSON.stringify({prompt:sysPrompt+'\n\n'+userMsg});
+
+      if(swRegistration&&swRegistration.active&&geminiKey){
+        document.getElementById('bg-notify').classList.add('show');
+        await saveToBgDB('bgResult',{done:false,ts:Date.now()});
+        swRegistration.active.postMessage({type:'generate',url,body});
+        contentEl.innerHTML='<div style="display:flex;align-items:center;"><div class="spinner"></div><span>バックグラウンドで構築中... タブを閉じても継続します。</span></div>';
+        return;
+      }
+      const res=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body});
+      const data=await res.json();
+      if(data.error) throw new Error(data.error.message);
+      result=data.candidates?data.candidates[0].content.parts[0].text:(data.response||data.text||'');
+
+    } else if(codeProvider==='claude'){
+      if(!key) throw new Error('Claude APIキーが設定されていません');
+      const res=await fetch('https://api.anthropic.com/v1/messages',{
+        method:'POST',
+        headers:{'Content-Type':'application/json','x-api-key':key,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
+        body:JSON.stringify({model:codeModel,max_tokens:8192,system:sysPrompt,messages:[{role:'user',content:userMsg}]})
+      });
+      const data=await res.json();
+      if(data.error) throw new Error(data.error.message||JSON.stringify(data.error));
+      result=data.content[0].text;
+
+    } else if(codeProvider==='gpt'||codeProvider==='grok'){
+      if(!key) throw new Error(`${codeProvider} APIキーが設定されていません`);
+      const url=codeProvider==='gpt'?'https://api.openai.com/v1/chat/completions':'https://api.x.ai/v1/chat/completions';
+      const res=await fetch(url,{
+        method:'POST',
+        headers:{'Content-Type':'application/json','Authorization':'Bearer '+key},
+        body:JSON.stringify({model:codeModel,messages:[{role:'system',content:sysPrompt},{role:'user',content:userMsg}]})
+      });
+      const data=await res.json();
+      if(data.error) throw new Error(data.error.message);
+      result=data.choices[0].message.content;
+    }
+
+    result=result.replace(/^```html\s*/i,'').replace(/^```\s*/,'').replace(/```$/g,'').trim();
+    codeEditor&&codeEditor.setValue(result);
+    contentEl.innerHTML='✨ コード構築完了。';
+    showPage('chat',document.getElementById('tab-chat'));
+    updatePreview();
+  } catch(e){
+    contentEl.innerHTML=`<span style="color:var(--danger)">エラー: ${e.message}</span>`;
+  }
+}
+
+// ── Debug ──
+function sendDebugRequest(){
+  const memo=document.getElementById('debug-memo');
+  const txt=memo.value.trim(); if(!txt) return;
+  showPage('chat',document.getElementById('tab-chat'));
+  const chatInput=document.getElementById('user-prompt');
+  chatInput.value='【修正依頼】\n'+txt; autoGrow(chatInput);
+  memo.value=''; askAI();
+}
+
+// ── Preview / Code Actions ──
+function updatePreview(){ const code=codeEditor?codeEditor.getValue():''; document.getElementById('preview-frame').srcdoc=code; }
+function copyCode(){ if(!codeEditor) return; navigator.clipboard.writeText(codeEditor.getValue()).then(()=>showToast('Copied!')); }
+function downloadCode(){
+  if(!codeEditor) return; const code=codeEditor.getValue(); if(!code) return alert('コードがありません。');
+  const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([code],{type:'text/html'})); a.download='index.html'; document.body.appendChild(a); a.click(); document.body.removeChild(a);
+}
+function triggerCodeUpload(){ document.getElementById('code-upload-input').click(); }
+function handleCodeUpload(input){
+  const file=input.files[0]; if(!file) return;
+  const reader=new FileReader();
+  reader.onload=e=>{ codeEditor&&codeEditor.setValue(e.target.result); updatePreview(); showToast('「'+file.name+'」を読み込みました'); };
+  reader.readAsText(file); input.value='';
+}
+function openEditorSearch(){
+  if(!codeEditor) return;
+  codeEditor.focus();
+  // Trigger the find dialog via execCommand
+  CodeMirror.commands.find(codeEditor);
+}
+function confirmReset(){
+  if(!confirm('会話とコードをリセットしますか？')) return;
+  conversationMessages=[];
+  const log=document.getElementById('chat-log'); log.innerHTML='';
+  const w=document.createElement('div'); w.className='msg ai';
+  const c=document.createElement('div'); c.className='msg-content';
+  c.innerHTML='AI Web Studio Pro 2026 起動。<br>要件を教えてください。プランが固まったら「⚡️コードを作成」ボタンを表示します。';
+  w.appendChild(c); log.appendChild(w);
+  codeEditor&&codeEditor.setValue('');
+  document.getElementById('preview-frame').srcdoc='';
+  clearAllAttachments();
+}
+
+
+// ── Settings ──
+async function populateModelSelect(selectId, provider, current){
+  const sel=document.getElementById(selectId); sel.innerHTML='';
+  const custom=await getCustomModels(provider);
+  [...DEFAULT_MODELS[provider],...custom].forEach(m=>{
+    const o=document.createElement('option'); o.value=m; o.textContent=m;
+    if(m===current) o.selected=true; sel.appendChild(o);
+  });
+}
+async function onChatProviderSettingChange(){
+  const p=document.getElementById('chat-provider-setting').value;
+  await populateModelSelect('chat-model-setting',p,DEFAULT_MODELS[p][0]);
+}
+async function onCodeProviderSettingChange(){
+  const p=document.getElementById('code-provider-setting').value;
+  await populateModelSelect('code-model-setting',p,DEFAULT_MODELS[p][0]);
+}
+
+async function saveSettings(){
+  for(const p of ['gemini','claude','gpt','grok'])
+    await putSetting(`apikey_${p}`,document.getElementById(`api-key-${p}`).value.trim());
+
+  chatProvider=document.getElementById('chat-provider-setting').value;
+  chatModel   =document.getElementById('chat-model-setting').value;
+  codeProvider=document.getElementById('code-provider-setting').value;
+  codeModel   =document.getElementById('code-model-setting').value;
+
+  await putSetting('chatProvider',chatProvider); await putSetting('chatModel',chatModel);
+  await putSetting('codeProvider',codeProvider); await putSetting('codeModel',codeModel);
+  await putSetting('userProfile',document.getElementById('user-profile').value);
+  await putSetting('implementationPolicyPrompt',document.getElementById('implementation-policy-prompt').value);
+
+  const ghTok=document.getElementById('setting-gh-token').value.trim();
+  if(ghTok){ await putSetting('gh_token',ghTok); document.getElementById('deploy-token-input').value=ghTok; }
+  else { await putSetting('gh_token',''); document.getElementById('deploy-token-input').value=''; }
+
+  updateProviderBadge();
+  const btn=document.getElementById('save-btn'); const orig=btn.textContent;
+  btn.textContent='✓ 保存しました'; btn.style.background='var(--success)'; btn.style.color='#fff';
+  setTimeout(()=>{ btn.textContent=orig; btn.style.background='#fff'; btn.style.color='#000'; },2000);
+}
+
+// ── Model Management ──
+async function loadModelList(){
+  const provider=document.getElementById('mgmt-provider').value;
+  const list=document.getElementById('model-list'); list.innerHTML='';
+  const custom=await getCustomModels(provider);
+  DEFAULT_MODELS[provider].forEach(m=>{
+    const d=document.createElement('div'); d.className='list-item';
+    d.innerHTML=`<span class="item-label">${m}</span><span class="item-badge">デフォルト</span>`;
+    list.appendChild(d);
+  });
+  custom.forEach(m=>{
+    const d=document.createElement('div'); d.className='list-item';
+    d.innerHTML=`<span class="item-label">${m}</span><span class="item-badge">カスタム</span><button class="item-del" onclick="deleteCustomModel('${provider}','${m}')">✕</button>`;
+    list.appendChild(d);
+  });
+}
+async function addCustomModel(){
+  const provider=document.getElementById('mgmt-provider').value;
+  const name=document.getElementById('new-model-input').value.trim();
+  if(!name) return alert('モデル名を入力してください');
+  const custom=await getCustomModels(provider);
+  if([...DEFAULT_MODELS[provider],...custom].includes(name)) return alert('そのモデルは既に存在します');
+  custom.push(name); await saveCustomModels(provider,custom);
+  document.getElementById('new-model-input').value='';
+  showToast('モデルを追加しました'); await loadModelList();
+  // Refresh setting selects
+  const cp=document.getElementById('chat-provider-setting').value;
+  const dp=document.getElementById('code-provider-setting').value;
+  if(cp===provider) await populateModelSelect('chat-model-setting',cp,chatModel);
+  if(dp===provider) await populateModelSelect('code-model-setting',dp,codeModel);
+}
+window.deleteCustomModel=async(provider,name)=>{
+  if(!confirm('削除しますか？')) return;
+  let custom=await getCustomModels(provider);
+  custom=custom.filter(m=>m!==name); await saveCustomModels(provider,custom);
+  showToast('削除しました'); await loadModelList();
+};
+
+// ── Role Management ──
+async function loadRoleList(){
+  const list=document.getElementById('role-list'); list.innerHTML='';
+  const roles=await appDB.roles.toArray();
+  roles.forEach(r=>{
+    const d=document.createElement('div'); d.className='list-item';
+    d.innerHTML=`<div style="flex:1;min-width:0"><div class="item-label">${r.name}</div><div class="item-sub">${r.prompt.slice(0,40)}...</div></div>`
+      +(r.isPreset?`<span class="item-badge">プリセット</span>`:``)
+      +`<button class="item-del" style="color:#60a5fa" onclick="editRole('${r.id}')">✏️</button>`
+      +(r.isPreset?``:`<button class="item-del" onclick="deleteRole('${r.id}')">✕</button>`);
+    list.appendChild(d);
+  });
+}
+window.editRole=async(id)=>{
+  const role = await appDB.roles.get(id);
+  if(!role) return;
+  editingRoleId = id;
+  document.getElementById('new-role-name').value = role.name;
+  document.getElementById('new-role-prompt').value = role.prompt;
+  document.getElementById('role-add-btn').style.display = 'none';
+  document.getElementById('role-update-btn').style.display = 'block';
+  document.getElementById('role-cancel-btn').style.display = 'block';
+};
+window.cancelEditRole=()=>{
+  editingRoleId = null;
+  document.getElementById('new-role-name').value = '';
+  document.getElementById('new-role-prompt').value = '';
+  document.getElementById('role-add-btn').style.display = 'block';
+  document.getElementById('role-update-btn').style.display = 'none';
+  document.getElementById('role-cancel-btn').style.display = 'none';
+};
+window.updateCustomRole=async()=>{
+  if(!editingRoleId) return;
+  const name=document.getElementById('new-role-name').value.trim();
+  const prompt=document.getElementById('new-role-prompt').value.trim();
+  if(!name||!prompt) return alert('名前とプロンプトを入力してください');
+  const role = await appDB.roles.get(editingRoleId);
+  if(role) {
+    role.name = name; role.prompt = prompt;
+    await appDB.roles.put(role);
+    showToast('役割を更新しました');
+    cancelEditRole();
+    await loadRoleList();
+  }
+};
+async function addCustomRole(){
+  const name=document.getElementById('new-role-name').value.trim();
+  const prompt=document.getElementById('new-role-prompt').value.trim();
+  if(!name||!prompt) return alert('名前とプロンプトを入力してください');
+  await appDB.roles.add({id:generateUUID(),name,prompt,isPreset:false});
+  document.getElementById('new-role-name').value='';
+  document.getElementById('new-role-prompt').value='';
+  showToast('役割を追加しました'); await loadRoleList();
+}
+window.deleteRole=async(id)=>{
+  if(!confirm('削除しますか？')) return;
+  await appDB.roles.delete(id);
+  if(currentRoleId===id){ currentRoleId='role_1'; await putSetting('currentRoleId','role_1'); }
+  showToast('削除しました'); await loadRoleList();
+};
+
+// ── GitHub Deploy README ──
+async function openDeployer(){
+  const code=codeEditor?codeEditor.getValue():'';
+  if(!code) return alert('デプロイするコードがありません。');
+  const key=await getApiKey(codeProvider);
+  let pendingDeploy={code,readme:''};
+  await saveToBgDB('pending_deploy',pendingDeploy);
+
+  const btn=document.querySelector('.deploy-btn');
+  const orig=btn.innerHTML; btn.innerHTML='<div class="spinner" style="width:13px;height:13px;border-width:2px;margin:0 5px 0 0;"></div>README作成中...'; btn.disabled=true;
+
+  const implementationPolicy = await getSetting('implementationPolicyPrompt', '');
+  const readmePrompt=`以下のHTMLコードを分析し、高品質なREADME.mdを日本語で作成してください。セクション:プロジェクト名・概要・主な機能・使用技術・使い方。Markdownのコードブロックで囲まないでください。
+${implementationPolicy ? '参考ポリシー:\n' + implementationPolicy + '\n\n' : ''}コード:\n${code}`;
+
+  try{
+    let readme='';
+    if(codeProvider==='gemini'&&key){
+      const res=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${codeModel}:generateContent?key=${key}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({contents:[{parts:[{text:readmePrompt}]}]})});
+      const data=await res.json();
+      if(!data.error&&data.candidates?.[0]) readme=data.candidates[0].content.parts[0].text;
+    } else if(codeProvider==='claude'&&key){
+      const res=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json','x-api-key':key,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},body:JSON.stringify({model:codeModel,max_tokens:2048,messages:[{role:'user',content:readmePrompt}]})});
+      const data=await res.json(); if(data.content?.[0]) readme=data.content[0].text;
+    } else if((codeProvider==='gpt'||codeProvider==='grok')&&key){
+      const url=codeProvider==='gpt'?'https://api.openai.com/v1/chat/completions':'https://api.x.ai/v1/chat/completions';
+      const res=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+key},body:JSON.stringify({model:codeModel,messages:[{role:'user',content:readmePrompt}]})});
+      const data=await res.json(); if(data.choices?.[0]) readme=data.choices[0].message.content;
+    } else if(codeProvider==='gemini'&&!key&&PROXY_WORKER_URL){
+      const res=await fetch(PROXY_WORKER_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({prompt:readmePrompt})});
+      const data=await res.json(); readme=data.candidates?data.candidates[0].content.parts[0].text:(data.response||data.text||'');
+    }
+    if(readme){ readme=readme.replace(/^```markdown\s*/i,'').replace(/^```\s*/,'').replace(/```$/g,'').trim(); pendingDeploy.readme=readme; await saveToBgDB('pending_deploy',pendingDeploy); }
+  }catch(e){ console.log('README skip:',e); }
+
+  btn.innerHTML=orig; btn.disabled=false;
+  openGitHubDeploy();
+}
+
+// ── GitHub Import ──
+let ghImportReposStore=[];
+async function openGitHubImport(){
+  const token=await getSetting('gh_token','');
+  if(!token) return alert('GitHubトークンが未設定です。設定ページからトークンを登録してください。');
+  document.getElementById('gh-import-modal').classList.add('show');
+  document.getElementById('gh-step-repo').style.display=''; document.getElementById('gh-step-file').style.display='none';
+  document.getElementById('gh-repo-search').value=''; fetchImportRepos(token);
+}
+function closeGitHubImport(){ document.getElementById('gh-import-modal').classList.remove('show'); }
+async function fetchImportRepos(token){
+  const st=document.getElementById('gh-modal-status'); st.textContent='読み込み中...';
+  try{
+    const res=await fetch('https://api.github.com/user/repos?sort=updated&per_page=100',{headers:{'Authorization':'Bearer '+token}});
+    if(!res.ok) throw new Error('認証エラー ('+res.status+')');
+    ghImportReposStore=await res.json(); st.textContent=ghImportReposStore.length+' 件のリポジトリ'; renderImportRepos(ghImportReposStore);
+  }catch(e){ st.textContent='エラー: '+e.message; }
+}
+function renderImportRepos(repos){
+  const list=document.getElementById('gh-repo-list'); list.innerHTML='';
+  repos.forEach(r=>{ const li=document.createElement('li'); li.innerHTML='<span>'+(r.private?'🔒 ':'🌐 ')+r.name+'</span><span class="repo-meta-sm">'+new Date(r.updated_at).toLocaleDateString()+'</span>'; li.onclick=()=>selectImportRepo(r); list.appendChild(li); });
+}
+function filterImportRepos(){ const q=document.getElementById('gh-repo-search').value.toLowerCase(); renderImportRepos(ghImportReposStore.filter(r=>r.name.toLowerCase().includes(q))); }
+async function selectImportRepo(repo){
+  document.getElementById('gh-step-repo').style.display='none'; document.getElementById('gh-step-file').style.display='';
+  const st=document.getElementById('gh-file-status'); st.textContent=repo.full_name+' のファイルを取得中...';
+  const token=await getSetting('gh_token','');
+  try{
+    let res=await fetch('https://api.github.com/repos/'+repo.full_name+'/git/trees/main?recursive=1',{headers:{'Authorization':'Bearer '+token}});
+    if(!res.ok) res=await fetch('https://api.github.com/repos/'+repo.full_name+'/git/trees/master?recursive=1',{headers:{'Authorization':'Bearer '+token}});
+    if(!res.ok) throw new Error('ブランチが見つかりません');
+    renderFileTree(await res.json(),repo.full_name);
+  }catch(e){ st.textContent='エラー: '+e.message; }
+}
+function renderFileTree(tree,fullName){
+  const list=document.getElementById('gh-file-list'); const st=document.getElementById('gh-file-status');
+  list.innerHTML=''; const files=tree.tree.filter(f=>f.type==='blob'); st.textContent=files.length+' ファイル';
+  files.forEach(f=>{ const li=document.createElement('li'); const ext=f.path.split('.').pop().toLowerCase(); const icon=['html','htm'].includes(ext)?'🌐':['js'].includes(ext)?'📜':['css'].includes(ext)?'🎨':['md'].includes(ext)?'📝':'📄'; li.innerHTML='<span>'+icon+' '+f.path+'</span><span class="repo-meta-sm">'+(f.size>1024?(f.size/1024).toFixed(1)+'KB':f.size+'B')+'</span>'; li.onclick=()=>loadFileFromRepo(fullName,f.path); list.appendChild(li); });
+}
+async function loadFileFromRepo(fullName,path){
+  const token=await getSetting('gh_token',''); const st=document.getElementById('gh-file-status'); st.textContent=path+' を読み込み中...';
+  try{
+    const res=await fetch('https://api.github.com/repos/'+fullName+'/contents/'+path,{headers:{'Authorization':'Bearer '+token,'Accept':'application/vnd.github.v3.raw'}});
+    if(!res.ok) throw new Error('ファイル取得エラー');
+    const text=await res.text(); codeEditor&&codeEditor.setValue(text); closeGitHubImport(); showPage('chat',document.getElementById('tab-chat')); showToast('「'+path+'」をインポートしました');
+  }catch(e){ st.textContent='エラー: '+e.message; }
+}
+function backToRepoList(){ document.getElementById('gh-step-repo').style.display=''; document.getElementById('gh-step-file').style.display='none'; }
+
+// ── GitHub Deploy ──
+async function openGitHubDeploy(){
+  document.getElementById('gh-deploy-modal').classList.add('show');
+  const token=await getSetting('gh_token','');
+  if(token){ showDeployStep('repo'); fetchDeployRepos(); } else showDeployStep('token');
+}
+function closeGitHubDeploy(){ document.getElementById('gh-deploy-modal').classList.remove('show'); }
+function showDeployStep(step){
+  ['token','repo','new-repo','details'].forEach(s=>{ document.getElementById('deploy-step-'+s).style.display=s===step?(s==='new-repo'||s==='details'?'flex':'block'):'none'; });
+}
+async function saveDeployToken(){
+  const input=document.getElementById('deploy-token-input').value.trim(); const st=document.getElementById('deploy-token-status');
+  if(!input) return st.textContent='トークンを入力してください';
+  st.textContent='認証中...';
+  try{
+    const res=await fetch('https://api.github.com/user',{headers:{'Authorization':'Bearer '+input}});
+    if(!res.ok) throw new Error('認証失敗');
+    await putSetting('gh_token',input); document.getElementById('setting-gh-token').value=input;
+    st.textContent='認証成功！'; setTimeout(()=>{ showDeployStep('repo'); fetchDeployRepos(); },500);
+  }catch(e){ st.textContent='エラー: '+e.message; }
+}
+async function fetchDeployRepos(){
+  const token=await getSetting('gh_token',''); const st=document.getElementById('deploy-repo-status'); st.textContent='読み込み中...';
+  try{
+    const res=await fetch('https://api.github.com/user/repos?sort=updated&per_page=100',{headers:{'Authorization':'Bearer '+token}});
+    if(!res.ok) throw new Error('認証エラー ('+res.status+')');
+    deployRepos=await res.json(); st.textContent=deployRepos.length+' 件'; renderDeployRepos(deployRepos);
+  }catch(e){ st.textContent='エラー: '+e.message; }
+}
+function renderDeployRepos(repos){
+  const list=document.getElementById('deploy-repo-list'); list.innerHTML='';
+  repos.forEach(r=>{ const li=document.createElement('li'); li.innerHTML='<span>'+(r.private?'🔒 ':'🌐 ')+r.name+'</span><span class="repo-meta-sm">'+new Date(r.updated_at).toLocaleDateString()+'</span>'; li.onclick=()=>selectDeployRepo(r); list.appendChild(li); });
+}
+function filterDeployRepos(){ const q=document.getElementById('deploy-repo-search').value.toLowerCase(); renderDeployRepos(deployRepos.filter(r=>r.name.toLowerCase().includes(q))); }
+async function selectDeployRepo(repo){
+  selectedDeployRepo=repo; document.getElementById('deploy-target-repo-name').textContent=repo.full_name;
+  const pd=await getFromBgDB('pending_deploy');
+  document.getElementById('deploy-readme-content').value=pd&&pd.readme?pd.readme:'';
+  document.getElementById('deploy-execute-status').innerHTML=''; showDeployStep('details');
+}
+function encodeBase64Unicode(str){ return btoa(encodeURIComponent(str).replace(/%([0-9A-F]{2})/g,(_,p1)=>String.fromCharCode('0x'+p1))); }
+async function createNewRepo(){
+  const name=document.getElementById('new-repo-name').value.trim(); const desc=document.getElementById('new-repo-desc').value.trim();
+  const isPrivate=document.getElementById('new-repo-private').value==='true'; const st=document.getElementById('new-repo-status'); const btn=document.getElementById('new-repo-btn');
+  if(!name) return st.innerHTML='<span style="color:var(--danger)">リポジトリ名を入力してください</span>';
+  btn.disabled=true; st.innerHTML='<div class="spinner" style="width:13px;height:13px;border-width:2px;margin:0 5px 0 0;display:inline-block"></div>作成中...';
+  try{
+    const token=await getSetting('gh_token','');
+    const res=await fetch('https://api.github.com/user/repos',{method:'POST',headers:{'Authorization':'Bearer '+token,'Content-Type':'application/json'},body:JSON.stringify({name,description:desc,private:isPrivate,auto_init:true})});
+    if(!res.ok){const er=await res.json();throw new Error(er.message||'作成失敗');}
+    const newRepo=await res.json(); st.innerHTML='<span style="color:var(--success)">✅ 作成成功！</span>';
+    setTimeout(()=>{ btn.disabled=false; document.getElementById('new-repo-name').value=''; document.getElementById('new-repo-desc').value=''; st.innerHTML=''; selectDeployRepo(newRepo); },1000);
+  }catch(e){ st.innerHTML='<span style="color:var(--danger)">❌ '+e.message+'</span>'; btn.disabled=false; }
+}
+async function executeDeploy(){
+  if(!selectedDeployRepo) return;
+  const btn=document.getElementById('deploy-exec-btn'); const st=document.getElementById('deploy-execute-status');
+  const branch=document.getElementById('deploy-branch').value.trim()||'main';
+  const filepath=document.getElementById('deploy-filepath').value.trim()||'index.html';
+  const readmeContent=document.getElementById('deploy-readme-content').value;
+  const enablePages=document.getElementById('deploy-gh-pages').checked;
+  const pd=await getFromBgDB('pending_deploy');
+  const codeContent=pd?pd.code:(codeEditor?codeEditor.getValue():'');
+  if(!codeContent) return st.innerHTML='<span style="color:var(--danger)">エラー: コードがありません。</span>';
+  btn.disabled=true; st.innerHTML='<div class="spinner" style="width:13px;height:13px;border-width:2px;margin:0 5px 0 0;display:inline-block"></div>デプロイ準備中...';
+  const token=await getSetting('gh_token',''); const repoFull=selectedDeployRepo.full_name;
+  const pushFile=async(path,content,message)=>{
+    const url=`https://api.github.com/repos/${repoFull}/contents/${path}`;
+    let sha=null;
+    try{ const r=await fetch(url+'?ref='+branch,{headers:{'Authorization':'Bearer '+token}}); if(r.ok){const d=await r.json();sha=d.sha;} }catch(e){}
+    const body={message,content:encodeBase64Unicode(content),branch}; if(sha) body.sha=sha;
+    const r=await fetch(url,{method:'PUT',headers:{'Authorization':'Bearer '+token,'Content-Type':'application/json'},body:JSON.stringify(body)});
+    if(!r.ok){const er=await r.json();throw new Error(er.message||'Push failed');}
+  };
+  try{
+    st.innerHTML='<div class="spinner" style="width:13px;height:13px;border-width:2px;margin:0 5px 0 0;display:inline-block"></div>コードをコミット中...';
+    await pushFile(filepath,codeContent,`Deploy ${filepath} via AI Web Studio Pro`);
+    if(readmeContent){ st.innerHTML='<div class="spinner" style="width:13px;height:13px;border-width:2px;margin:0 5px 0 0;display:inline-block"></div>READMEをコミット中...'; await pushFile('README.md',readmeContent,'Update README.md via AI Web Studio Pro'); }
+    if(enablePages){
+      st.innerHTML='<div class="spinner" style="width:13px;height:13px;border-width:2px;margin:0 5px 0 0;display:inline-block"></div>GitHub Pages設定中...';
+      try{
+        const pr=await fetch(`https://api.github.com/repos/${repoFull}/pages`,{method:'POST',headers:{'Authorization':'Bearer '+token,'Accept':'application/vnd.github.v3+json','Content-Type':'application/json'},body:JSON.stringify({source:{branch,path:'/'}})});
+        if(!pr.ok){const ed=await pr.json();if(pr.status!==409) console.warn('Pages:',ed);}
+      }catch(e){}
+      st.innerHTML='<div class="spinner" style="width:13px;height:13px;border-width:2px;margin:0 5px 0 0;display:inline-block"></div>GitHub Pages構築中...(最大2分)';
+      let built=false;
+      for(let i=0;i<40;i++){
+        await new Promise(r=>setTimeout(r,3000));
+        try{ const br=await fetch(`https://api.github.com/repos/${repoFull}/pages/builds/latest`,{headers:{'Authorization':'Bearer '+token,'Accept':'application/vnd.github.v3+json'}}); if(br.ok){const bd=await br.json();if(bd.status==='built'){built=true;break;}if(bd.status==='errored') throw new Error('Build errored');} }catch(e){if(e.message==='Build errored') throw e;}
+      }
+      if(built){
+        let siteUrl=`https://${repoFull.split('/')[0]}.github.io/${repoFull.split('/')[1]}/`;
+        try{const pr2=await fetch(`https://api.github.com/repos/${repoFull}/pages`,{headers:{'Authorization':'Bearer '+token,'Accept':'application/vnd.github.v3+json'}});if(pr2.ok){const pd2=await pr2.json();siteUrl=pd2.html_url;}}catch(e){}
+        st.innerHTML=`<span style="color:var(--success)">✅ デプロイ＆公開完了！</span><br><a href="${siteUrl}" target="_blank" style="color:var(--primary);font-size:13px;font-weight:bold;display:inline-block;margin-top:7px;padding:6px 12px;background:#1e3a8a;border-radius:6px;text-decoration:none;">🚀 公開サイトを開く</a><br><a href="https://github.com/${repoFull}" target="_blank" style="color:#aaa;font-size:11px;display:inline-block;margin-top:7px;text-decoration:underline;">リポジトリを開く</a>`;
+      } else {
+        st.innerHTML=`<span style="color:#eab308">⚠️ デプロイ完了。Pages構築確認がタイムアウトしました。数分後に確認してください。</span><br><a href="https://github.com/${repoFull}" target="_blank" style="color:var(--primary)">リポジトリを開く</a>`;
+      }
+    } else {
+      st.innerHTML=`<span style="color:var(--success)">✅ デプロイ成功！</span> <a href="https://github.com/${repoFull}" target="_blank" style="color:var(--primary)">リポジトリを開く</a>`;
+    }
+    await delFromBgDB('pending_deploy');
+  }catch(e){ st.innerHTML='<span style="color:var(--danger)">❌ エラー: '+e.message+'</span>'; }
+  btn.disabled=false;
+}
+
+// ══════════════════════════════════════════════════════════
+// ── RAG ENGINE ──
+// ══════════════════════════════════════════════════════════
+
+// ── PDF.js init ──
+if(typeof pdfjsLib !== 'undefined') pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+// ── RAG state ──
+let ragStreaming = false;
+
+// ── Drop zone ──
+(function setupRagDrop(){
+  window.addEventListener('DOMContentLoaded',()=>{
+    const dz=document.getElementById('rag-drop-zone');
+    if(!dz) return;
+    dz.addEventListener('dragover',e=>{e.preventDefault();dz.classList.add('drag-over');});
+    dz.addEventListener('dragleave',()=>dz.classList.remove('drag-over'));
+    dz.addEventListener('drop',e=>{
+      e.preventDefault(); dz.classList.remove('drag-over');
+      const files=[...e.dataTransfer.files];
+      if(files.length) processRagFiles(files);
+    });
+  });
+})();
+
+function handleRagFiles(input){
+  const files=[...input.files]; input.value='';
+  if(files.length) processRagFiles(files);
+}
+
+// ── File Processing Pipeline ──
+async function processRagFiles(files){
+  const geminiKey = await getApiKey('gemini');
+  if(!geminiKey){ showToast('Gemini API キーが必要です（Embedding用）'); showPage('settings',document.getElementById('tab-settings')); return; }
+
+  for(const file of files){
+    const docId='doc_'+generateUUID();
+    const doc={ id:docId, name:file.name, type:getFileType(file), size:file.size, chunkCount:0, status:'indexing', createdAt:Date.now() };
+    await appDB.rag_docs.put(doc);
+    loadRagDocList();
+
+    try{
+      // 1. Extract text
+      const text = await extractText(file, geminiKey);
+      if(!text||text.trim().length<10) throw new Error('テキストを抽出できませんでした');
+
+      // 2. Chunk
+      const chunkSize=parseInt(document.getElementById('rag-chunk-size')?.value||400);
+      const overlap=parseInt(document.getElementById('rag-chunk-overlap')?.value||80);
+      const chunks=chunkText(text, chunkSize, overlap);
+
+      // 3. Embed all chunks (batched)
+      const updateProg=pct=>{ const el=document.getElementById('rag-prog-'+docId); if(el) el.style.width=pct+'%'; };
+      updateProg(5);
+      const embedded = await embedChunks(chunks, geminiKey, pct=>updateProg(10+pct*0.85));
+
+      // 4. Save to DB
+      const chunkRecs = embedded.map((e,i)=>({
+        id:'chunk_'+generateUUID(), docId, docName:file.name,
+        text:chunks[i], embedding:e, tokens:tokenize(chunks[i]),
+        chunkIndex:i, totalChunks:chunks.length
+      }));
+      await appDB.rag_chunks.bulkPut(chunkRecs);
+      doc.chunkCount=chunkRecs.length; doc.status='done'; doc.charCount=text.length;
+      await appDB.rag_docs.put(doc);
+      updateProg(100);
+      showToast(`「${file.name}」を${chunkRecs.length}チャンクでインデックス完了`);
+
+    }catch(e){
+      doc.status='error'; doc.error=e.message;
+      await appDB.rag_docs.put(doc);
+      showToast(`エラー: ${file.name} — ${e.message}`);
+    }
+    loadRagDocList();
+  }
+}
+
+function getFileType(file){
+  if(file.type==='application/pdf') return 'pdf';
+  if(file.type.startsWith('image/')) return 'image';
+  if(file.name.endsWith('.md')||file.name.endsWith('.markdown')) return 'markdown';
+  if(file.name.endsWith('.html')||file.name.endsWith('.htm')) return 'html';
+  if(file.name.endsWith('.csv')) return 'csv';
+  return 'text';
+}
+
+// ── Text Extraction ──
+async function extractText(file, geminiKey){
+  const type=getFileType(file);
+  if(type==='pdf') return extractPdfText(file);
+  if(type==='image') return extractImageText(file, geminiKey);
+  if(type==='html'){
+    const raw=await readFileText(file);
+    const tmp=document.createElement('div'); tmp.innerHTML=raw;
+    return tmp.innerText||tmp.textContent||'';
+  }
+  return readFileText(file);
+}
+
+async function readFileText(file){ return new Promise((res,rej)=>{ const fr=new FileReader(); fr.onload=()=>res(fr.result); fr.onerror=rej; fr.readAsText(file,'utf-8'); }); }
+
+async function extractPdfText(file){
+  if(typeof pdfjsLib==='undefined') throw new Error('PDF.js が読み込まれていません');
+  const ab=await file.arrayBuffer();
+  const pdf=await pdfjsLib.getDocument({data:ab}).promise;
+  const parts=[];
+  for(let p=1;p<=pdf.numPages;p++){
+    const page=await pdf.getPage(p);
+    const content=await page.getTextContent();
+    const pageText=content.items.map(i=>i.str).join(' ');
+    parts.push(`[Page ${p}]\n${pageText}`);
+  }
+  return parts.join('\n\n');
+}
+
+async function extractImageText(file, geminiKey){
+  const b64=await new Promise((res,rej)=>{ const fr=new FileReader(); fr.onload=()=>res(fr.result.split(',')[1]); fr.onerror=rej; fr.readAsDataURL(file); });
+  const res=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${geminiKey}`,{
+    method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({contents:[{parts:[
+      {inline_data:{mime_type:file.type,data:b64}},
+      {text:'この画像に含まれるすべてのテキスト・情報を詳細に抽出し、構造を保って出力してください。日本語で出力してください。'}
+    ]}]})
+  });
+  const data=await res.json();
+  if(data.error) throw new Error(data.error.message);
+  return data.candidates[0].content.parts[0].text||'';
+}
+
+// ── Chunking ──
+function chunkText(text, size, overlap){
+  const chunks=[];
+  let start=0;
+  const paragraphs=text.split(/\n{2,}/);
+  let buf='';
+  for(const para of paragraphs){
+    if((buf+para).length>size&&buf.length>0){
+      chunks.push(buf.trim());
+      // Overlap: keep last `overlap` chars of current buf
+      const tail=buf.slice(Math.max(0,buf.length-overlap));
+      buf=tail+'\n\n'+para;
+    } else {
+      buf=buf?buf+'\n\n'+para:para;
+    }
+    // Force flush if buf is huge
+    while(buf.length>size*1.5){
+      chunks.push(buf.slice(0,size).trim());
+      buf=buf.slice(size-overlap);
+    }
+  }
+  if(buf.trim()) chunks.push(buf.trim());
+  return chunks.filter(c=>c.length>20);
+}
+
+// ── Embedding ──
+async function embedChunks(chunks, apiKey, onProgress){
+  const embeddings=[];
+  const BATCH=5; // Gemini embedding allows some parallelism
+  for(let i=0;i<chunks.length;i+=BATCH){
+    const batch=chunks.slice(i,i+BATCH);
+    const results=await Promise.all(batch.map(c=>embedText(c,apiKey)));
+    embeddings.push(...results);
+    if(onProgress) onProgress((i+batch.length)/chunks.length);
+    if(i+BATCH<chunks.length) await new Promise(r=>setTimeout(r,150)); // rate limit
+  }
+  return embeddings;
+}
+
+async function embedText(text, apiKey){
+  const res=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/text-embedding-004:embedContent?key=${apiKey}`,{
+    method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({model:'models/text-embedding-004',content:{parts:[{text:text.slice(0,2000)}]}})
+  });
+  const data=await res.json();
+  if(data.error) throw new Error('Embedding API: '+data.error.message);
+  return data.embedding.values;
+}
+
+// ── BM25 ──
+function tokenize(text){ return text.toLowerCase().replace(/[^\w\u3040-\u9fff]/g,' ').split(/\s+/).filter(t=>t.length>1); }
+
+function bm25Score(queryTokens, docTokens, avgdl, k1=1.5, b=0.75){
+  const tf={};
+  docTokens.forEach(t=>{tf[t]=(tf[t]||0)+1;});
+  const dl=docTokens.length;
+  let score=0;
+  queryTokens.forEach(q=>{
+    const f=tf[q]||0;
+    if(f>0) score += (f*(k1+1)) / (f + k1*(1-b+b*dl/Math.max(avgdl,1)));
+  });
+  return score;
+}
+
+// ── Cosine Similarity ──
+function cosineSim(a, b){
+  let dot=0, na=0, nb=0;
+  for(let i=0;i<a.length;i++){ dot+=a[i]*b[i]; na+=a[i]*a[i]; nb+=b[i]*b[i]; }
+  const denom=Math.sqrt(na)*Math.sqrt(nb);
+  return denom===0?0:dot/denom;
+}
+
+// ── Hybrid Retrieval ──
+async function hybridSearch(query, apiKey, k, alpha){
+  const allChunks=await appDB.rag_chunks.toArray();
+  if(!allChunks.length) return [];
+
+  const queryEmbedding=await embedText(query, apiKey);
+  const queryTokens=tokenize(query);
+  const avgdl=allChunks.reduce((s,c)=>s+(c.tokens?.length||0),0)/allChunks.length;
+
+  // Vector scores
+  const vecScores=allChunks.map(c=>({chunk:c, vec:cosineSim(queryEmbedding, c.embedding||[])}));
+
+  // BM25 scores
+  const bm25Scores=allChunks.map(c=>({chunk:c, bm25:bm25Score(queryTokens, c.tokens||[], avgdl)}));
+
+  // Normalize to [0,1]
+  const maxVec=Math.max(...vecScores.map(s=>s.vec),0.001);
+  const maxBM25=Math.max(...bm25Scores.map(s=>s.bm25),0.001);
+
+  // Combine
+  const combined=allChunks.map((_,i)=>({
+    chunk:allChunks[i],
+    score: alpha*(vecScores[i].vec/maxVec) + (1-alpha)*(bm25Scores[i].bm25/maxBM25),
+    vecScore:vecScores[i].vec,
+    bm25Score:bm25Scores[i].bm25
+  }));
+
+  // Sort and take top k*3 for reranking
+  combined.sort((a,b)=>b.score-a.score);
+  return combined.slice(0, Math.min(k*3, combined.length));
+}
+
+// ── LLM Reranker ──
+async function llmRerank(query, candidates, k, apiKey, provider, model){
+  if(!candidates.length) return [];
+  const key=await getApiKey(provider);
+  if(!key&&provider!=='gemini') return candidates.slice(0,k); // fallback: no rerank
+
+  const contextList=candidates.slice(0,Math.min(15,candidates.length)).map((c,i)=>`[${i+1}] ${c.chunk.text.slice(0,300)}`).join('\n\n');
+  const prompt=`以下の${candidates.length}件のテキストチャンクについて、次の質問への関連度を評価してください。
+
+質問: ${query}
+
+チャンク一覧:
+${contextList}
+
+各チャンクの番号と関連度スコア(0.0〜1.0)をJSON配列で出力してください。
+例: [{"index":1,"score":0.95},{"index":2,"score":0.3},...] 
+JSON以外は出力しないでください。`;
+
+  try{
+    let responseText='';
+    const rKey=key||(provider==='gemini'?'':null);
+    if(provider==='gemini'&&rKey){
+      const res=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${rKey}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({contents:[{parts:[{text:prompt}]}]})});
+      const data=await res.json(); responseText=data.candidates?.[0]?.content?.parts?.[0]?.text||'';
+    } else if(provider==='gemini'&&!rKey&&PROXY_WORKER_URL){
+      const res=await fetch(PROXY_WORKER_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({prompt})});
+      const data=await res.json(); responseText=data.candidates?data.candidates[0].content.parts[0].text:(data.response||data.text||'');
+    } else if(provider==='claude'&&rKey){
+      const res=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json','x-api-key':rKey,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},body:JSON.stringify({model,max_tokens:512,messages:[{role:'user',content:prompt}]})});
+      const data=await res.json(); responseText=data.content?.[0]?.text||'';
+    } else if((provider==='gpt'||provider==='grok')&&rKey){
+      const url=provider==='gpt'?'https://api.openai.com/v1/chat/completions':'https://api.x.ai/v1/chat/completions';
+      const res=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+rKey},body:JSON.stringify({model,messages:[{role:'user',content:prompt}],max_tokens:512})});
+      const data=await res.json(); responseText=data.choices?.[0]?.message?.content||'';
+    }
+
+    const jsonMatch=responseText.match(/\[[\s\S]*\]/);
+    if(!jsonMatch) return candidates.slice(0,k);
+    const scores=JSON.parse(jsonMatch[0]);
+    scores.sort((a,b)=>b.score-a.score);
+    return scores.slice(0,k).map(s=>({...candidates[(s.index||1)-1], rerankScore:s.score})).filter(Boolean);
+  }catch(e){
+    console.warn('Rerank failed, using hybrid scores:', e);
+    return candidates.slice(0,k);
+  }
+}
+
+// ── RAG Chat ──
+async function askRag(){
+  if(ragStreaming) return;
+  const input=document.getElementById('rag-prompt');
+  const query=input.value.trim(); if(!query) return;
+
+  const geminiKey=await getApiKey('gemini');
+  if(!geminiKey){ showToast('Gemini API キーが必要です（Embedding用）'); return; }
+
+  const docCount=await appDB.rag_docs.where('status').equals('done').count();
+  if(docCount===0){ showToast('インデックス済みのドキュメントがありません'); return; }
+
+  const k=parseInt(document.getElementById('rag-k')?.value||6);
+  const alpha=parseFloat(document.getElementById('rag-alpha')?.value||6)/10;
+  const useRerank=(document.getElementById('rag-rerank')?.value||'llm')==='llm';
+
+  const log=document.getElementById('rag-log');
+  document.getElementById('rag-empty-hint')?.remove();
+
+  // User bubble
+  const uEl=document.createElement('div'); uEl.className='rag-msg user'; uEl.textContent=query; log.appendChild(uEl);
+  input.value=''; input.style.height='42px';
+
+  // AI bubble
+  const aEl=document.createElement('div'); aEl.className='rag-msg ai';
+  const cEl=document.createElement('div'); cEl.className='rag-msg-content';
+  cEl.innerHTML='<div style="display:flex;align-items:center;"><div class="spinner"></div><span>検索中...</span></div>';
+  aEl.appendChild(cEl); log.appendChild(aEl); log.scrollTop=log.scrollHeight;
+
+  ragStreaming=true;
+  document.getElementById('rag-send-btn').disabled=true;
+
+  try{
+    // 1. Hybrid retrieval
+    cEl.querySelector('span').textContent='ハイブリッド検索中...';
+    let candidates=await hybridSearch(query, geminiKey, k, alpha);
+
+    // 2. LLM Rerank
+    if(useRerank&&candidates.length>k){
+      cEl.querySelector('span').textContent='リランキング中...';
+      candidates=await llmRerank(query, candidates, k, geminiKey, chatProvider, chatModel);
+    } else {
+      candidates=candidates.slice(0,k);
+    }
+
+    if(!candidates.length){ cEl.textContent='関連するドキュメントが見つかりませんでした。'; ragStreaming=false; document.getElementById('rag-send-btn').disabled=false; return; }
+
+    // 3. Build context
+    const context=candidates.map((c,i)=>`[出典${i+1}: ${c.chunk.docName} チャンク${c.chunk.chunkIndex+1}]\n${c.chunk.text}`).join('\n\n---\n\n');
+
+    const ragSystemPrompt=`あなたは提供されたドキュメントコンテキストに基づいて質問に答えるアシスタントです。
+コンテキスト外の情報については「提供された資料には記載がありません」と正直に答えてください。
+回答の最後に【参照】として使用した出典番号を記載してください。
+
+【参照ドキュメント】
+${context}`;
+
+    // 4. Stream answer
+    cEl.innerHTML='';
+    let aiText='';
+    const answerChunks=await new Promise((resolve,reject)=>{
+      const worker=new Worker(URL.createObjectURL(new Blob([WORKER_CODE],{type:'application/javascript'})));
+      worker.onmessage=(ev)=>{
+        const {type,text:chunk,error}=ev.data;
+        if(type==='chunk'){ aiText+=chunk; cEl.innerText=aiText; log.scrollTop=log.scrollHeight; }
+        else if(type==='done'){ worker.terminate(); resolve(aiText); }
+        else if(type==='error'){ worker.terminate(); reject(new Error(error)); }
+      };
+      const apiKey=geminiKey; // use gemini key for generation too, fallback to provider
+      worker.postMessage({ provider:chatProvider, model:chatModel,
+        apiKey:apiKey||undefined, systemPrompt:ragSystemPrompt,
+        messages:[{role:'user',content:query}],
+        proxyUrl:(!apiKey&&chatProvider==='gemini')?PROXY_WORKER_URL:undefined });
+    });
+
+    // 5. Render markdown + sources
+    cEl.innerHTML=DOMPurify.sanitize(marked.parse(aiText));
+
+    // Source chips
+    const srcDiv=document.createElement('div'); srcDiv.className='rag-sources';
+    srcDiv.innerHTML=`<div class="rag-sources-label">📎 参照チャンク (${candidates.length}件)</div>`;
+    candidates.forEach((c,i)=>{
+      const chip=document.createElement('span'); chip.className='rag-source-chip';
+      chip.innerHTML=`📄 ${escHtml(c.chunk.docName.slice(0,18))} <span style="color:#446">·${c.chunk.chunkIndex+1}</span>`;
+      const preview=document.createElement('div'); preview.className='rag-source-preview';
+      preview.textContent=c.chunk.text.slice(0,300)+(c.chunk.text.length>300?'…':'');
+      chip.onclick=()=>{ preview.classList.toggle('show'); };
+      srcDiv.appendChild(chip);
+      srcDiv.appendChild(preview);
+    });
+    aEl.appendChild(srcDiv);
+
+    // Copy btn
+    const actDiv=document.createElement('div'); actDiv.className='msg-actions';
+    const cpBtn=document.createElement('button'); cpBtn.className='msg-copy-btn'; cpBtn.textContent='📋 コピー';
+    cpBtn.onclick=()=>{ const t=aiText; copyRawText(t,cpBtn); }; actDiv.appendChild(cpBtn);
+    aEl.appendChild(actDiv);
+    aEl.dataset.rawText=aiText;
+
+  }catch(e){
+    cEl.innerHTML=`<span style="color:var(--danger)">エラー: ${e.message}</span>`;
+  }
+
+  ragStreaming=false;
+  document.getElementById('rag-send-btn').disabled=false;
+  log.scrollTop=log.scrollHeight;
+}
+
+function copyRawText(text, btn){
+  const doCopy=()=>{ btn.textContent='✅ コピー完了'; setTimeout(()=>btn.textContent='📋 コピー',2000); };
+  navigator.clipboard?.writeText(text).then(doCopy).catch(()=>{ const ta=document.createElement('textarea'); ta.value=text; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta); doCopy(); });
+}
+
+function escHtml(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+// ── RAG Doc List ──
+async function loadRagDocList(){
+  const list=document.getElementById('rag-doc-list'); if(!list) return;
+  const docs=await appDB.rag_docs.orderBy('createdAt').reverse().toArray();
+  list.innerHTML='';
+
+  const statusBar=document.getElementById('rag-status-bar');
+  if(!docs.length){ statusBar.textContent='ドキュメント未登録'; return; }
+  const done=docs.filter(d=>d.status==='done');
+  const totalChunks=done.reduce((s,d)=>s+(d.chunkCount||0),0);
+  statusBar.textContent=`${done.length}件 / 合計${totalChunks}チャンク インデックス済`;
+
+  const icons={pdf:'📄',image:'🖼',markdown:'📝',text:'📃',html:'🌐',csv:'📊'};
+  docs.forEach(doc=>{
+    const item=document.createElement('div'); item.className='rag-doc-item';
+    const statusMap={indexing:'インデックス中',done:`${doc.chunkCount}チャンク`,error:'エラー'};
+    const statusClass={indexing:'indexing',done:'done',error:'error'};
+    item.innerHTML=`
+      <span class="rag-doc-icon">${icons[doc.type]||'📄'}</span>
+      <div class="rag-doc-info">
+        <div class="rag-doc-name" title="${escHtml(doc.name)}">${escHtml(doc.name)}</div>
+        <div class="rag-doc-meta">${formatBytes(doc.size)} ${doc.error?'— '+escHtml(doc.error.slice(0,40)):''}</div>
+        ${doc.status==='indexing'?`<div class="rag-progress-bar"><div class="rag-progress-fill" id="rag-prog-${doc.id}" style="width:5%"></div></div>`:''}
+      </div>
+      <span class="rag-doc-status ${statusClass[doc.status]}">${statusMap[doc.status]||doc.status}</span>
+      <button class="rag-doc-del" onclick="deleteRagDoc('${doc.id}')" title="削除">✕</button>`;
+    list.appendChild(item);
+  });
+}
+
+async function deleteRagDoc(docId){
+  if(!confirm('このドキュメントとそのチャンクを削除しますか？')) return;
+  await appDB.rag_chunks.where('docId').equals(docId).delete();
+  await appDB.rag_docs.delete(docId);
+  await loadRagDocList();
+  showToast('削除しました');
+}
+
+function formatBytes(b){ if(!b) return ''; if(b<1024) return b+'B'; if(b<1048576) return (b/1024).toFixed(1)+'KB'; return (b/1048576).toFixed(1)+'MB'; }
+
+function toggleRagConfig(){ document.getElementById('rag-config').classList.toggle('open'); }
+
+// Chunk modal
+function openChunkModal(docName, meta, text){
+  document.getElementById('chunk-modal-doc').textContent=docName;
+  document.getElementById('chunk-modal-meta').textContent=meta;
+  document.getElementById('chunk-modal-text').textContent=text;
+  document.getElementById('chunk-modal-overlay').classList.add('show');
+}
+function closeChunkModal(){ document.getElementById('chunk-modal-overlay').classList.remove('show'); }
+
+// Enter to send in RAG
+document.addEventListener('DOMContentLoaded',()=>{
+  const ragPrompt=document.getElementById('rag-prompt');
+  if(ragPrompt) ragPrompt.addEventListener('keydown',e=>{ if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();askRag();} });
+});
+
+// ══════════════════════════════════════════════════════
+// ── Pipeline Management (Settings UI) ──
+// ══════════════════════════════════════════════════════
+
+async function loadPipelineList(){
+  const list=document.getElementById('pipeline-list');
+  if(!list) return;
+  list.innerHTML='';
+  const pipelines=await appDB.pipelines.toArray();
+  if(!pipelines.length){ list.innerHTML='<p style="font-size:11px;color:#555;text-align:center;padding:16px 0;">パイプラインがありません</p>'; return; }
+  pipelines.forEach(pl=>{ list.appendChild(buildPipelineCard(pl)); });
+}
+
+function buildPipelineCard(pl){
+  const card=document.createElement('div'); card.className='pipeline-card'; card.dataset.plId=pl.id;
+  const steps=pl.steps||[];
+  card.innerHTML=`
+    <div class="pipeline-card-header">
+      <span class="pipeline-card-name">${escHtml(pl.name)}</span>
+      ${pl.isDefault?'<span class="pipeline-default-badge">デフォルト</span>':''}
+      <div class="pipeline-actions">
+        ${!pl.isDefault?`<button class="pipeline-btn" onclick="setDefaultPipeline('${pl.id}')">デフォルト設定</button>`:`<button class="pipeline-btn" onclick="unsetDefaultPipeline('${pl.id}')">解除</button>`}
+        <button class="pipeline-btn" onclick="addStepToPipeline('${pl.id}')">＋ステップ</button>
+        ${!pl.isPreset?`<button class="pipeline-btn danger" onclick="deletePipeline('${pl.id}')">削除</button>`:''}
+      </div>
+    </div>
+    <div class="step-list" id="step-list-${pl.id}"></div>`;
+  const stepList=card.querySelector(`#step-list-${pl.id}`);
+  steps.sort((a,b)=>a.order-b.order).forEach(st=>{ stepList.appendChild(buildStepItem(pl.id,st)); });
+  initDragForList(stepList,pl.id);
+  return card;
+}
+
+function buildStepItem(plId,st){
+  const item=document.createElement('div'); item.className='step-item'; item.dataset.stepId=st.id;
+  const modelOpts=ALL_PROVIDERS_FLAT().map(p=>
+    `<optgroup label="${p.charAt(0).toUpperCase()+p.slice(1)}">`+
+    [...DEFAULT_MODELS[p]].map(m=>`<option value="${p}:${m}" ${(st.provider===p&&st.model===m)?'selected':''}>${m}</option>`).join('')+
+    `</optgroup>`
+  ).join('');
+  item.innerHTML=`
+    <div class="step-header" onclick="toggleStepBody(this)">
+      <span class="step-drag-handle" draggable="true">⋮⋮</span>
+      <span class="step-num">${st.order+1}</span>
+      <span class="step-name-txt">${escHtml(st.name)}</span>
+      <span class="step-badges">
+        <span class="step-badge model">${st.model}</span>
+        ${st.requireApproval?'<span class="step-badge approval">承認</span>':''}
+        ${!st.enabled?'<span class="step-badge disabled">無効</span>':''}
+      </span>
+    </div>
+    <div class="step-body">
+      <div class="step-field">
+        <label>ステップ名</label>
+        <input type="text" value="${escHtml(st.name)}" onchange="updateStepField('${plId}','${st.id}','name',this.value)">
+      </div>
+      <div class="step-field">
+        <label>プロバイダー : モデル</label>
+        <select onchange="updateStepProviderModel('${plId}','${st.id}',this.value)">${modelOpts}</select>
+      </div>
+      <div class="step-toggle-row">
+        <span>承認を要求する</span>
+        <label class="toggle-switch"><input type="checkbox" ${st.requireApproval?'checked':''} onchange="updateStepField('${plId}','${st.id}','requireApproval',this.checked)"><span class="toggle-slider"></span></label>
+      </div>
+      <div class="step-toggle-row">
+        <span>有効</span>
+        <label class="toggle-switch"><input type="checkbox" ${st.enabled!==false?'checked':''} onchange="updateStepField('${plId}','${st.id}','enabled',this.checked)"><span class="toggle-slider"></span></label>
+      </div>
+      <div class="step-field">
+        <label>システムプロンプト</label>
+        <textarea rows="3" onchange="updateStepField('${plId}','${st.id}','systemPrompt',this.value)">${escHtml(st.systemPrompt||'')}</textarea>
+      </div>
+      <div class="step-field">
+        <label>ユーザープロンプトテンプレート</label>
+        <textarea rows="4" onchange="updateStepField('${plId}','${st.id}','userPromptTpl',this.value)">${escHtml(st.userPromptTpl||'')}</textarea>
+        <div class="step-vars-hint">変数: {{user_input}} {{prev_output}} {{output:ラベル}} {{conversation}}</div>
+      </div>
+      <div class="step-field">
+        <label>出力ラベル <small style="color:#555;font-size:9px;">(後続から {{output:ラベル}} で参照)</small></label>
+        <input type="text" value="${escHtml(st.outputRole||'')}" placeholder="例: requirements, code, review" onchange="updateStepField('${plId}','${st.id}','outputRole',this.value)">
+      </div>
+      <button class="step-del-btn" onclick="deleteStep('${plId}','${st.id}')">このステップを削除</button>
+    </div>`;
+  return item;
+}
+
+function ALL_PROVIDERS_FLAT(){ return ['gemini','claude','gpt','grok']; }
+
+function toggleStepBody(headerEl){
+  const body=headerEl.nextElementSibling;
+  if(body) body.classList.toggle('open');
+}
+
+async function updateStepField(plId,stepId,field,value){
+  const pl=await appDB.pipelines.get(plId); if(!pl) return;
+  const st=pl.steps.find(s=>s.id===stepId); if(!st) return;
+  st[field]=value;
+  await appDB.pipelines.put(pl);
+  const item=document.querySelector(`.step-item[data-step-id="${stepId}"]`);
+  if(item){
+    item.querySelector('.step-name-txt').textContent=st.name;
+    const badgeHtml=`<span class="step-badge model">${st.model}</span>${st.requireApproval?'<span class="step-badge approval">承認</span>':''}${!st.enabled?'<span class="step-badge disabled">無効</span>':''}`;
+    item.querySelector('.step-badges').innerHTML=badgeHtml;
+  }
+}
+
+async function updateStepProviderModel(plId,stepId,val){
+  const [provider,model]=val.split(':');
+  const pl=await appDB.pipelines.get(plId); if(!pl) return;
+  const st=pl.steps.find(s=>s.id===stepId); if(!st) return;
+  st.provider=provider; st.model=model;
+  await appDB.pipelines.put(pl);
+  const item=document.querySelector(`.step-item[data-step-id="${stepId}"]`);
+  if(item) item.querySelector('.step-badge.model').textContent=model;
+}
+
+async function addStepToPipeline(plId){
+  const pl=await appDB.pipelines.get(plId); if(!pl) return;
+  const newStep={ id:generateUUID(), order:(pl.steps||[]).length, name:'新しいステップ', enabled:true,
+    requireApproval:false, provider:'gemini', model:'gemini-2.5-flash',
+    systemPrompt:'', userPromptTpl:'{{user_input}}', outputRole:'' };
+  pl.steps.push(newStep);
+  await appDB.pipelines.put(pl);
+  await loadPipelineList();
+  showToast('ステップを追加しました');
+}
+
+async function deleteStep(plId,stepId){
+  if(!confirm('このステップを削除しますか？')) return;
+  const pl=await appDB.pipelines.get(plId); if(!pl) return;
+  pl.steps=pl.steps.filter(s=>s.id!==stepId);
+  pl.steps.forEach((s,i)=>s.order=i);
+  await appDB.pipelines.put(pl);
+  await loadPipelineList();
+}
+
+async function createNewPipeline(){
+  const nameEl=document.getElementById('new-pipeline-name');
+  const name=nameEl.value.trim(); if(!name) return alert('パイプライン名を入力してください');
+  const newPl={ id:'pipeline_'+generateUUID(), name, isDefault:false, isPreset:false, steps:[] };
+  await appDB.pipelines.put(newPl);
+  nameEl.value='';
+  await loadPipelineList();
+  showToast('パイプラインを作成しました');
+}
+
+async function setDefaultPipeline(plId){
+  const all=await appDB.pipelines.toArray();
+  for(const p of all){ p.isDefault=(p.id===plId); await appDB.pipelines.put(p); }
+  await loadPipelineList();
+  await updatePipelineRunBtn();
+  showToast('デフォルトパイプラインを設定しました');
+}
+
+async function unsetDefaultPipeline(plId){
+  const pl=await appDB.pipelines.get(plId); if(!pl) return;
+  pl.isDefault=false; await appDB.pipelines.put(pl);
+  await loadPipelineList();
+  await updatePipelineRunBtn();
+}
+
+async function deletePipeline(plId){
+  if(!confirm('このパイプラインを削除しますか？')) return;
+  await appDB.pipelines.delete(plId);
+  await loadPipelineList();
+  await updatePipelineRunBtn();
+  showToast('パイプラインを削除しました');
+}
+
+async function updatePipelineRunBtn(){
+  const pipelines=await appDB.pipelines.toArray();
+  const def=pipelines.find(p=>p.isDefault);
+  const btn=document.getElementById('pipeline-run-btn');
+  if(btn){ btn.disabled=!def; btn.title=def?`▶ ${def.name}`:'デフォルトパイプライン未設定'; }
+}
+
+// ── Drag & Drop (step reorder) ──
+function initDragForList(listEl,plId){
+  let dragSrc=null;
+  listEl.querySelectorAll('.step-drag-handle').forEach(handle=>{
+    handle.addEventListener('dragstart',e=>{
+      dragSrc=handle.closest('.step-item');
+      dragSrc.classList.add('dragging');
+      e.dataTransfer.effectAllowed='move';
+    });
+  });
+  listEl.addEventListener('dragover',e=>{
+    e.preventDefault();
+    const target=e.target.closest('.step-item');
+    if(target&&target!==dragSrc){ target.classList.add('drag-over'); }
+  });
+  listEl.addEventListener('dragleave',e=>{
+    const target=e.target.closest('.step-item');
+    if(target) target.classList.remove('drag-over');
+  });
+  listEl.addEventListener('drop',async e=>{
+    e.preventDefault();
+    const target=e.target.closest('.step-item');
+    if(target&&target!==dragSrc){
+      target.classList.remove('drag-over');
+      const items=[...listEl.querySelectorAll('.step-item')];
+      const srcIdx=items.indexOf(dragSrc); const tgtIdx=items.indexOf(target);
+      if(srcIdx<tgtIdx) listEl.insertBefore(dragSrc,target.nextSibling);
+      else listEl.insertBefore(dragSrc,target);
+      const pl=await appDB.pipelines.get(plId); if(!pl) return;
+      const newOrder=[...listEl.querySelectorAll('.step-item')].map(el=>el.dataset.stepId);
+      pl.steps.sort((a,b)=>newOrder.indexOf(a.id)-newOrder.indexOf(b.id));
+      pl.steps.forEach((s,i)=>{ s.order=i; });
+      await appDB.pipelines.put(pl);
+      listEl.querySelectorAll('.step-num').forEach((el,i)=>el.textContent=i+1);
+    }
+    if(dragSrc) dragSrc.classList.remove('dragging');
+    dragSrc=null;
+  });
+}
+
+// ══════════════════════════════════════════════════════
+// ── Pipeline Execution Engine ──
+// ══════════════════════════════════════════════════════
+
+async function startDefaultPipeline(){
+  const pipelines=await appDB.pipelines.toArray();
+  const def=pipelines.find(p=>p.isDefault);
+  if(!def){ showToast('デフォルトパイプラインが設定されていません'); return; }
+  const userInput=document.getElementById('user-prompt').value.trim();
+  if(!userInput){ showToast('実行する内容を入力してください'); return; }
+  document.getElementById('user-prompt').value='';
+  document.getElementById('user-prompt').style.height='44px';
+  runPipeline(def, userInput);
+}
+
+async function runPipeline(pipeline, userInput){
+  if(isPipelineRunning){ showToast('パイプライン実行中です'); return; }
+  if(isStreaming){ showToast('AI応答中です。完了後に実行してください'); return; }
+  isPipelineRunning=true;
+  pipelineAbortFlag=false;
+  document.getElementById('send-btn').disabled=true;
+  document.getElementById('pipeline-run-btn').disabled=true;
+
+  const log=document.getElementById('chat-log');
+  const enabledSteps=(pipeline.steps||[]).filter(s=>s.enabled!==false).sort((a,b)=>a.order-b.order);
+  if(!enabledSteps.length){ showToast('有効なステップがありません'); finishPipeline(); return; }
+
+  const userEl=document.createElement('div'); userEl.className='msg user';
+  userEl.textContent=`[🔗 ${pipeline.name}]\n${userInput}`; log.appendChild(userEl);
+
+  const progressCard=document.createElement('div'); progressCard.className='pipeline-progress-card';
+  progressCard.innerHTML=`<div class="pipeline-progress-title">🔗 ${escHtml(pipeline.name)}</div>`+
+    enabledSteps.map((st,i)=>`<div class="pipeline-step-row" id="prow-${st.id}"><span class="pipeline-step-status">⏳</span><span class="pipeline-step-label">${i+1}. ${escHtml(st.name)} <span style="color:#445;font-size:10px;">[${st.model}]</span></span></div>`).join('');
+  log.appendChild(progressCard); log.scrollTop=log.scrollHeight;
+
+  const context={ user_input:userInput, outputs:{}, prev_output:'',
+    conversation:conversationMessages.map(m=>(m.role==='user'?'ユーザー':'AI')+': '+m.content).join('\n'), code:'' };
+
+  for(let i=0;i<enabledSteps.length;i++){
+    if(pipelineAbortFlag) break;
+    const step=enabledSteps[i];
+    updateStepProgress(progressCard,step.id,'running',i+1);
+    log.scrollTop=log.scrollHeight;
+
+    const stepBubble=document.createElement('div'); stepBubble.className='msg ai';
+    const stepLabel=document.createElement('div'); stepLabel.style.cssText='font-size:10px;color:#446;margin-bottom:8px;font-weight:bold;';
+    stepLabel.textContent=`Step ${i+1}/${enabledSteps.length}: ${step.name} [${step.model}]`;
+    const stepContent=document.createElement('div'); stepContent.className='msg-content';
+    stepContent.innerHTML=`<div style="display:flex;align-items:center;"><div class="spinner"></div><span>${step.name} 実行中...</span></div>`;
+    stepBubble.appendChild(stepLabel); stepBubble.appendChild(stepContent);
+    log.appendChild(stepBubble); log.scrollTop=log.scrollHeight;
+
+    let stepOutput='';
+    try{
+      stepOutput=await runPipelineStep(step, context,
+        chunk=>{ stepOutput+=chunk; stepContent.innerText=stepOutput; log.scrollTop=log.scrollHeight; }
+      );
+      stepContent.innerHTML=DOMPurify.sanitize(marked.parse(stepOutput));
+      stepBubble.dataset.rawText=stepOutput;
+    } catch(e){
+      stepContent.innerHTML=`<span style="color:var(--danger)">エラー: ${escHtml(e.message)}</span>`;
+      updateStepProgress(progressCard,step.id,'error',i+1);
+      break;
+    }
+
+    const actDiv=document.createElement('div'); actDiv.className='msg-actions';
+    const cpBtn=document.createElement('button'); cpBtn.className='msg-copy-btn'; cpBtn.textContent='📋 コピー';
+    cpBtn.onclick=()=>copyRawText(stepOutput,cpBtn); actDiv.appendChild(cpBtn); stepBubble.appendChild(actDiv);
+
+    context.prev_output=stepOutput;
+    if(step.outputRole) context.outputs[step.outputRole]=stepOutput;
+
+    updateStepProgress(progressCard,step.id,'done',i+1);
+
+    if(step.requireApproval && i<enabledSteps.length-1 && !pipelineAbortFlag){
+      await showApprovalGate(log, step.name, i, enabledSteps.length, context);
+      if(pipelineAbortFlag) break;
+    }
+  }
+
+  if(!pipelineAbortFlag) conversationMessages.push({role:'ai',content:`[パイプライン完了: ${pipeline.name}]\n${context.prev_output}`});
+  finishPipeline();
+}
+
+function updateStepProgress(card, stepId, status){
+  const row=card.querySelector(`#prow-${stepId}`); if(!row) return;
+  const icon=row.querySelector('.pipeline-step-status');
+  const label=row.querySelector('.pipeline-step-label');
+  const icons={waiting:'⏳',running:'🔄',done:'✅',error:'❌',paused:'⏸'};
+  icon.textContent=icons[status]||'⏳';
+  label.className='pipeline-step-label'+(status==='running'?' active':status==='done'?' done':status==='error'?' error':'');
+}
+
+function showApprovalGate(log, stepName, stepIdx, total, context){
+  return new Promise(resolve=>{
+    const gate=document.createElement('div'); gate.className='msg ai';
+    gate.style.background='#1a1e2a'; gate.style.border='1px solid #2a3a4a';
+    gate.innerHTML=`<div style="font-size:12px;color:#8ab4d4;margin-bottom:8px;">⏸ <strong>ステップ${stepIdx+1}「${escHtml(stepName)}」完了</strong> — 次のステップに進みますか？</div>`;
+    const bar=document.createElement('div'); bar.className='approval-bar';
+    const okBtn=document.createElement('button'); okBtn.className='approval-btn ok'; okBtn.textContent='✅ 承認して次へ';
+    const revBtn=document.createElement('button'); revBtn.className='approval-btn revise'; revBtn.textContent='✏️ 修正コメントを追加';
+    const stopBtn=document.createElement('button'); stopBtn.className='approval-btn'; stopBtn.style.background='#3a2020'; stopBtn.style.color='#d88'; stopBtn.textContent='⏹ 中断';
+    bar.appendChild(okBtn); bar.appendChild(revBtn); bar.appendChild(stopBtn);
+    gate.appendChild(bar); log.appendChild(gate); log.scrollTop=log.scrollHeight;
+    okBtn.onclick=()=>{ gate.remove(); resolve(); };
+    stopBtn.onclick=()=>{ pipelineAbortFlag=true; gate.remove(); resolve(); };
+    revBtn.onclick=()=>{
+      bar.innerHTML='';
+      const ta=document.createElement('textarea'); ta.style.cssText='width:100%;background:#1a1e28;border:1px solid #2a3050;border-radius:6px;padding:8px;color:#ddd;font-size:12px;margin-bottom:8px;font-family:inherit;resize:vertical;min-height:60px;box-sizing:border-box;';
+      ta.placeholder='修正コメント・追加指示を入力...';
+      const applyBtn=document.createElement('button'); applyBtn.className='approval-btn ok'; applyBtn.textContent='適用して次へ';
+      applyBtn.onclick=()=>{ if(ta.value.trim()) context.user_input+='\n\n【修正指示】\n'+ta.value.trim(); gate.remove(); resolve(); };
+      bar.appendChild(ta); bar.appendChild(applyBtn); gate.appendChild(bar);
+    };
+  });
+}
+
+async function runPipelineStep(step, context, onChunk){
+  const key=await getApiKey(step.provider);
+  if(!key&&step.provider!=='gemini') throw new Error(`${step.provider} のAPIキーが設定されていません`);
+  const userPrompt=resolveTemplate(step.userPromptTpl||'{{user_input}}', context);
+  const systemPrompt=step.systemPrompt||'あなたは優秀なAIアシスタントです。';
+  return new Promise((resolve,reject)=>{
+    let acc='';
+    const worker=new Worker(URL.createObjectURL(new Blob([WORKER_CODE],{type:'application/javascript'})));
+    worker.onmessage=(ev)=>{
+      const {type,text:chunk,error}=ev.data;
+      if(type==='chunk'){ acc+=chunk; onChunk(chunk); }
+      else if(type==='done'){ worker.terminate(); resolve(acc); }
+      else if(type==='error'){ worker.terminate(); reject(new Error(error)); }
+    };
+    worker.postMessage({
+      provider:step.provider, model:step.model,
+      apiKey:key||undefined, systemPrompt,
+      messages:[{role:'user',content:userPrompt}],
+      proxyUrl:(!key&&step.provider==='gemini')?PROXY_WORKER_URL:undefined
+    });
+  });
+}
+
+function resolveTemplate(tpl, context){
+  return tpl
+    .replace(/\{\{user_input\}\}/g, context.user_input||'')
+    .replace(/\{\{prev_output\}\}/g, context.prev_output||'')
+    .replace(/\{\{conversation\}\}/g, context.conversation||'')
+    .replace(/\{\{output:([^}]+)\}\}/g, (_,label)=>context.outputs[label.trim()]||'');
+}
+
+function finishPipeline(){
+  isPipelineRunning=false;
+  pipelineAbortFlag=false;
+  document.getElementById('send-btn').disabled=false;
+  updatePipelineRunBtn();
+}
+
+// ── Touch swipe ──
+let touchStartX=0;
+document.addEventListener('touchstart',e=>{touchStartX=e.changedTouches[0].screenX;},{passive:true});
+document.addEventListener('touchend',e=>{
+  const dx=e.changedTouches[0].screenX-touchStartX;
+  const active=document.querySelector('.page.active');
+  if(!active) return; const idx=PAGE_LIST.indexOf(active.id.replace('p-',''));
+  if(Math.abs(dx)>120){
+    if(dx<0&&idx<PAGE_LIST.length-1) showPage(PAGE_LIST[idx+1],document.querySelectorAll('.tab-btn')[idx+1]);
+    else if(dx>0&&idx>0) showPage(PAGE_LIST[idx-1],document.querySelectorAll('.tab-btn')[idx-1]);
+  }
+},{passive:true});
+
+// ── Boot ──
+window.addEventListener('DOMContentLoaded',()=>{
+  initCodeMirror();
+  init();
+});
+</script>
+</body>
+</html>
